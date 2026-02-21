@@ -92,55 +92,78 @@ class ClientController extends Controller
 
     public function update(Request $request, Client $client)
     {
-        $request->validate([
+        $validated = $request->validate([
             'clientCode' => [
+                'sometimes',
                 'nullable',
                 'string',
                 'max:255',
                 Rule::unique('clients', 'clientCode')->ignore($client->id),
             ],
-            'clientName' => 'required|string|max:255',
+            'clientName' => 'sometimes|string|max:255',
             'email' => [
-                'required',
+                'sometimes',
                 'email',
                 Rule::unique('users', 'email')->ignore($client->user_id),
             ],
-            'country' => 'required',
-            'phone' => 'required',
+            'country' => 'sometimes|string|max:255',
+            'phone' => 'sometimes|string|max:255',
+            'clientType' => 'sometimes|nullable|string|max:255',
+            'niche' => 'sometimes|nullable|string|max:255',
+            'marketCountry' => 'sometimes|nullable|string|max:255',
+            'settlementMode' => 'sometimes|nullable|string|max:255',
+            'statementCycle' => 'sometimes|nullable|string|max:255',
+            'settlementCurrency' => 'sometimes|nullable|string|max:255',
+            'cooperationStart' => 'sometimes|nullable|date',
+            'serviceFeePercent' => 'sometimes|nullable|numeric',
+            'serviceFeeEffectiveTime' => 'sometimes|nullable|date',
+            'enabled' => 'sometimes|boolean',
         ]);
 
         DB::beginTransaction();
 
         try {
 
-            // Update linked user safely
-            $client->user->update([
-                'name' => $request->clientName,
-                'email' => $request->email,
-            ]);
-
-            // Update client data
-            $clientData = [
-                'clientName' => $request->clientName,
-                'country' => $request->country,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'clientType' => $request->clientType,
-                'niche' => $request->niche,
-                'marketCountry' => $request->marketCountry,
-                'settlementMode' => $request->settlementMode,
-                'statementCycle' => $request->statementCycle,
-                'settlementCurrency' => $request->settlementCurrency,
-                'cooperationStart' => $request->cooperationStart,
-                'serviceFeePercent' => $request->serviceFeePercent,
-                'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
-            ];
-
-            if ($request->filled('clientCode')) {
-                $clientData['clientCode'] = $request->clientCode;
+            $userData = [];
+            if (array_key_exists('clientName', $validated)) {
+                $userData['name'] = $validated['clientName'];
+            }
+            if (array_key_exists('email', $validated)) {
+                $userData['email'] = $validated['email'];
+            }
+            if (!empty($userData)) {
+                $client->user->update($userData);
             }
 
-            $client->update($clientData);
+            // Update client data
+            $clientFields = [
+                'clientCode',
+                'clientName',
+                'country',
+                'email',
+                'phone',
+                'clientType',
+                'niche',
+                'marketCountry',
+                'settlementMode',
+                'statementCycle',
+                'settlementCurrency',
+                'cooperationStart',
+                'serviceFeePercent',
+                'serviceFeeEffectiveTime',
+                'enabled',
+            ];
+
+            $clientData = [];
+            foreach ($clientFields as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $clientData[$field] = $validated[$field];
+                }
+            }
+
+            if (!empty($clientData)) {
+                $client->update($clientData);
+            }
 
             DB::commit();
 
