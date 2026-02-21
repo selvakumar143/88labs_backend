@@ -23,7 +23,7 @@ class AdminAuthController extends Controller
 
         $user = Auth::user();
 
-        if (!$user->hasRole('Admin')) {
+        if (!$user->hasAnyRole(['admin', 'Admin'])) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized. Not an Admin.'

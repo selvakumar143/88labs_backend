@@ -64,3 +64,101 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+https://sel:_NsLeKRt84PkAPSmJ1w1QJAw9ykQs0P2p9gxr@github.com/selvakumar143/88labs_backend.git
+
+## Create User API
+
+### Endpoint
+
+- `POST /api/admin/users`
+
+### Authentication
+
+- Required: `Bearer` token from an authenticated `admin` user (Sanctum token).
+- Headers:
+  - `Authorization: Bearer <admin_token>`
+  - `Accept: application/json`
+  - `Content-Type: application/json`
+
+### Request Body
+
+```json
+{
+  "role": "admin",
+  "user": {
+    "name": "Jane Admin",
+    "email": "jane.admin@example.com",
+    "password": "secret123",
+    "password_confirmation": "secret123"
+  }
+}
+```
+
+### Field Rules
+
+- `role`: required, must be one of `admin`, `customer`
+- `user`: required object
+- `user.name`: required, string, max 255
+- `user.email`: required, valid email, max 255, unique in `users` table
+- `user.password`: required, min 6
+- `user.password_confirmation`: required, must match `user.password`
+
+### Success Response (201)
+
+```json
+{
+  "status": "success",
+  "message": "User created successfully",
+  "data": {
+    "user": {
+      "id": 10,
+      "name": "Jane Admin",
+      "email": "jane.admin@example.com",
+      "email_verified_at": "2026-02-21T00:00:00.000000Z",
+      "created_at": "2026-02-21T00:00:00.000000Z",
+      "updated_at": "2026-02-21T00:00:00.000000Z"
+    },
+    "role": [
+      "admin"
+    ]
+  }
+}
+```
+
+### Validation Error Response (422)
+
+```json
+{
+  "message": "The role field must be one of admin, customer.",
+  "errors": {
+    "role": [
+      "The selected role is invalid."
+    ]
+  }
+}
+```
+
+### Unauthorized/Forbidden
+
+- `401 Unauthorized`: token missing or invalid
+- `403 Forbidden`: authenticated user is not `admin`
+
+### cURL Example
+
+```bash
+curl --request POST 'http://localhost:8000/api/admin/users' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "role":"customer",
+    "user":{
+      "name":"John Customer",
+      "email":"john.customer@example.com",
+      "password":"secret123",
+      "password_confirmation":"secret123"
+    }
+  }'
+```

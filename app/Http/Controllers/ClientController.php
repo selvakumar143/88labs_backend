@@ -38,7 +38,7 @@ class ClientController extends Controller
                 'email_verified_at' => now(),
             ]);
 
-            $user->assignRole('Customer');
+            $user->assignRole('customer');
 
             // 2️⃣ Create client linked to that user
             Client::create([

@@ -24,7 +24,7 @@ class CustomerAuthController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $user->assignRole('Customer');
+        $user->assignRole('customer');
 
         $token = $user->createToken('customer_token')->plainTextToken;
 
@@ -53,7 +53,7 @@ class CustomerAuthController extends Controller
 
         $user = Auth::user();
 
-        if (!$user->hasRole('Customer')) {
+        if (!$user->hasAnyRole(['customer', 'Customer'])) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized. Not a Customer.'

@@ -35,7 +35,7 @@ Route::post('/logout', [ClientDashboardController::class, 'logout'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:Customer'])
+Route::middleware(['auth', 'role:customer|Customer'])
     ->prefix('client')
     ->group(function () {
 
@@ -63,7 +63,7 @@ Route::post('/admin/logout', [AdminDashboardController::class, 'logout'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:Admin'])
+Route::middleware(['auth', 'role:admin|Admin'])
     ->prefix('admin')
     ->group(function () {
 
@@ -87,6 +87,6 @@ Route::view('/test/admin-dashboard', 'test.admin-dashboard');
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:Admin'])->group(function () {
+Route::middleware(['auth', 'role:admin|Admin'])->group(function () {
     Route::resource('clients', ClientController::class);
 });
