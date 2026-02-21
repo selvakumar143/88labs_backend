@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AdAccountRequestController as AdminAdController;
 
 use App\Http\Controllers\Client\WalletTopupController as ClientWallet;
 use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
+use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,7 +57,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Users
         Route::post('/admin/users', [UserController::class, 'store']);
-        
+
         // Clients
         Route::get('/admin/clients', [ClientController::class, 'index']);
         Route::post('/admin/clients', [ClientController::class, 'store']);
@@ -70,6 +71,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Wallet
         Route::get('/admin/wallet-topups', [AdminWallet::class, 'index']);
         Route::put('/admin/wallet-topups/{id}', [AdminWallet::class, 'updateStatus']);
+
+        // Account Management
+        Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
+        Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
     });
 
     /*
