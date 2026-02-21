@@ -281,8 +281,21 @@ curl --request POST 'http://localhost:8000/api/ad-account-request' \
 Backward-compatible endpoint (same response):
 - `GET /api/my-ad-account-requests`
 
+Optional query params:
+- `status` = `pending|approved|rejected|all`
+- `search` = request id / business name / platform / business manager id / website url
+- `per_page` = items per page (default `10`)
+
 ```bash
 curl --request GET 'http://localhost:8000/api/client/ad-account-requests' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+Filter by status + search + pagination:
+
+```bash
+curl --request GET 'http://localhost:8000/api/client/ad-account-requests?status=pending&search=Acme&per_page=20' \
   --header 'Authorization: Bearer <customer_token>' \
   --header 'Accept: application/json'
 ```
