@@ -7,6 +7,10 @@ use App\Models\User;
 
 class WalletTopup extends Model
 {
+    protected $appends = [
+        'total_amount',
+    ];
+
     protected $fillable = [
         'request_id',
         'client_id',
@@ -31,5 +35,10 @@ class WalletTopup extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function getTotalAmountAttribute(): string
+    {
+        return (string) $this->amount;
     }
 }

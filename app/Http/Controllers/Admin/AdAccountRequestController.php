@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdAccountRequest;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 
 class AdAccountRequestController extends Controller
@@ -34,49 +35,27 @@ class AdAccountRequestController extends Controller
         ]);
     }
 
-    public function approve($id)
+    public function updateStatus(Request $request, $id)
     {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in([
+                AdAccountRequest::STATUS_APPROVED,
+                AdAccountRequest::STATUS_REJECTED,
+            ])],
+        ]);
+
         $requestData = AdAccountRequest::findOrFail($id);
 
-        if ($requestData->status !== AdAccountRequest::STATUS_PENDING) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Request already processed.'
-            ], 400);
-        }
-
         $requestData->update([
-            'status' => AdAccountRequest::STATUS_APPROVED,
+            'status' => $validated['status'],
             'approved_by' => Auth::id(),
             'approved_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Request approved.'
-        ]);
-    }
-
-    public function reject($id)
-    {
-        $requestData = AdAccountRequest::findOrFail($id);
-
-        if ($requestData->status !== AdAccountRequest::STATUS_PENDING) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Request already processed.'
-            ], 400);
-        }
-
-        $requestData->update([
-            'status' => AdAccountRequest::STATUS_REJECTED,
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-        ]);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Request rejected.'
+            'message' => 'Request status updated.',
+            'data' => $requestData,
         ]);
     }
 }

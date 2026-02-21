@@ -26,18 +26,6 @@ class AdAccountRequestController extends Controller
         ]);
         $user = Auth::user();
 
-        // Prevent duplicate pending request
-        $exists = AdAccountRequest::where('client_id', $user->id)
-                    ->where('status', AdAccountRequest::STATUS_PENDING)
-                    ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'You already have a pending request.'
-            ], 400);
-        }
-
         $lastId = AdAccountRequest::max('id') + 1;
         $requestId = 'REQ-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
 
@@ -64,7 +52,7 @@ class AdAccountRequestController extends Controller
         ], 201);
     }
 
-    public function myRequests()
+    public function index()
     {
         $requests = AdAccountRequest::where('client_id', Auth::id())
                         ->latest()
@@ -74,5 +62,10 @@ class AdAccountRequestController extends Controller
             'status' => 'success',
             'data' => $requests
         ]);
+    }
+
+    public function myRequests()
+    {
+        return $this->index();
     }
 }

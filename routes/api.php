@@ -39,6 +39,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Ad Account
         Route::post('/ad-account-request', [ClientAdController::class, 'store']);
+        Route::get('/client/ad-account-requests', [ClientAdController::class, 'index']);
         Route::get('/my-ad-account-requests', [ClientAdController::class, 'myRequests']);
 
         // Wallet
@@ -64,13 +65,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Ad Account
         Route::get('/admin/ad-account-requests', [AdminAdController::class, 'index']);
-        Route::put('/admin/ad-account-requests/{id}/approve', [AdminAdController::class, 'approve']);
-        Route::put('/admin/ad-account-requests/{id}/reject', [AdminAdController::class, 'reject']);
+        Route::put('/admin/ad-account-requests/{id}', [AdminAdController::class, 'updateStatus']);
 
         // Wallet
         Route::get('/admin/wallet-topups', [AdminWallet::class, 'index']);
-        Route::put('/admin/wallet-topups/{id}/approve', [AdminWallet::class, 'approve']);
-        Route::put('/admin/wallet-topups/{id}/reject', [AdminWallet::class, 'reject']);
+        Route::put('/admin/wallet-topups/{id}', [AdminWallet::class, 'updateStatus']);
     });
 
     /*

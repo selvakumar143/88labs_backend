@@ -247,3 +247,193 @@ curl --request DELETE 'http://localhost:8000/api/admin/clients/1' \
   --header 'Authorization: Bearer <admin_token>' \
   --header 'Accept: application/json'
 ```
+
+## Ad Account Request APIs
+
+### 1) Client: Create Ad Account Request
+
+`POST /api/ad-account-request`
+
+```bash
+curl --request POST 'http://localhost:8000/api/ad-account-request' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "business_name":"Acme Fashion Group",
+    "platform":"Facebook",
+    "timezone":"Asia/Dubai",
+    "country":"United Arab Emirates",
+    "currency":"AED",
+    "business_manager_id":"BM-99887766",
+    "website_url":"https://acmefashion.example.com",
+    "account_type":"Business",
+    "personal_profile":"https://facebook.com/john.customer",
+    "number_of_accounts":2,
+    "notes":"Need ad accounts for fashion and beauty campaigns."
+  }'
+```
+
+### 2) Client: List Own Ad Account Requests
+
+`GET /api/client/ad-account-requests`
+
+Backward-compatible endpoint (same response):
+- `GET /api/my-ad-account-requests`
+
+```bash
+curl --request GET 'http://localhost:8000/api/client/ad-account-requests' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Admin: List All Client Ad Account Requests
+
+`GET /api/admin/ad-account-requests`
+
+Optional query params:
+- `status` (`pending|approved|rejected`)
+- `search` (request id or client name)
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/ad-account-requests?status=pending&search=REQ-' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Admin: Update Ad Account Request Status
+
+`PUT /api/admin/ad-account-requests/1`
+
+Allowed values:
+- `approved`
+- `rejected`
+
+Approve:
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/ad-account-requests/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "status":"approved"
+  }'
+```
+
+Reject:
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/ad-account-requests/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "status":"rejected"
+  }'
+```
+
+## Wallet Topup APIs
+
+Note: `total_amount` in responses is derived from transaction `amount`.
+
+### 1) Client: Create Wallet Topup Request
+
+`POST /api/wallet-topup`
+
+```bash
+curl --request POST 'http://localhost:8000/api/wallet-topup' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "amount":"250.75",
+    "transaction_hash":"0x9f2b6c6f9ab114df71c2036c1c42f58dd2a8f8ac9717002fb6cb9cd4f31a7e90"
+  }'
+```
+
+### 2) Client: List Own Wallet Topup Requests
+
+`GET /api/my-wallet-topups`
+
+Optional query params:
+- `status` = `pending|approved|rejected|all`
+- `per_page` = items per page (default `10`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/my-wallet-topups' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+Filter by my status:
+
+```bash
+curl --request GET 'http://localhost:8000/api/my-wallet-topups?status=pending&per_page=20' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Admin: List All Wallet Topup Requests
+
+`GET /api/admin/wallet-topups`
+
+Optional query params:
+- `status` = `pending|approved|rejected|all`
+- `client_id` = specific client user id (or `all`)
+- `search` = request id / transaction hash / amount / client name / client email
+- `per_page` = items per page (default `10`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/wallet-topups' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+Filter by status and specific client:
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/wallet-topups?status=pending&client_id=5&search=TOP-&per_page=20' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+All clients (explicit):
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/wallet-topups?status=all&client_id=all' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Admin: Update Wallet Topup Status
+
+`PUT /api/admin/wallet-topups/1`
+
+Allowed values:
+- `approved`
+- `rejected`
+
+Approve:
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/wallet-topups/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "status":"approved"
+  }'
+```
+
+Reject:
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/wallet-topups/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "status":"rejected"
+  }'
+```

@@ -16,17 +16,6 @@ class WalletTopupController extends Controller
             'transaction_hash' => 'required|string'
         ]);
 
-        $exists = WalletTopup::where('client_id', Auth::id())
-                    ->where('status', WalletTopup::STATUS_PENDING)
-                    ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'You already have a pending topup request.'
-            ], 400);
-        }
-
         $lastId = WalletTopup::max('id') + 1;
         $requestId = 'TOP-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
 
@@ -45,11 +34,17 @@ class WalletTopupController extends Controller
         ]);
     }
 
-    public function myRequests()
+    public function myRequests(Request $request)
     {
+        $query = WalletTopup::where('client_id', Auth::id());
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
         return response()->json([
             'status' => 'success',
-            'data' => WalletTopup::where('client_id', Auth::id())->latest()->get()
+            'data' => $query->latest()->paginate($request->integer('per_page', 10))
         ]);
     }
 }
