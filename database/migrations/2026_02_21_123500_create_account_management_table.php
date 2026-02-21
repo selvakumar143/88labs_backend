@@ -9,8 +9,7 @@ return new class extends Migration {
     {
         Schema::create('account_management', function (Blueprint $table) {
             $table->id();
-            $table->string('client_id'); // String ID of the client (e.g., CL-1001)
-            $table->foreign('client_id')->references('id')->on('clients')->onDelete('cascade');
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->string('name');
             $table->string('account_id')->unique();
             $table->string('client_name');

@@ -54,9 +54,24 @@ class AdAccountRequestController extends Controller
 
     public function index()
     {
-        $requests = AdAccountRequest::where('client_id', Auth::id())
-                        ->latest()
-                        ->get();
+        $query = AdAccountRequest::where('client_id', Auth::id());
+
+        if (request()->filled('status') && request()->status !== 'all') {
+            $query->where('status', request()->status);
+        }
+
+        if (request()->filled('search')) {
+            $search = request()->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('request_id', 'like', "%{$search}%")
+                    ->orWhere('business_name', 'like', "%{$search}%")
+                    ->orWhere('platform', 'like', "%{$search}%")
+                    ->orWhere('business_manager_id', 'like', "%{$search}%")
+                    ->orWhere('website_url', 'like', "%{$search}%");
+            });
+        }
+
+        $requests = $query->latest()->paginate(request()->integer('per_page', 10));
 
         return response()->json([
             'status' => 'success',
