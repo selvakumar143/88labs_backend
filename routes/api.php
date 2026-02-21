@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ClientController;
+use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\CustomerAuthController;
 use App\Http\Controllers\Api\UserController;
@@ -35,7 +35,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     | CUSTOMER ROUTES
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['role:customer|Customer'])->group(function () {
+    Route::middleware(['role:customer|Customer,sanctum'])->group(function () {
 
         // Ad Account
         Route::post('/ad-account-request', [ClientAdController::class, 'store']);
@@ -51,10 +51,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     | ADMIN ROUTES
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['role:admin|Admin'])->group(function () {
+    Route::middleware(['role:admin|Admin,sanctum'])->group(function () {
 
         // Users
         Route::post('/admin/users', [UserController::class, 'store']);
+        
+        // Clients
+        Route::get('/admin/clients', [ClientController::class, 'index']);
+        Route::post('/admin/clients', [ClientController::class, 'store']);
+        Route::put('/admin/clients/{client}', [ClientController::class, 'update']);
+        Route::delete('/admin/clients/{client}', [ClientController::class, 'destroy']);
 
         // Ad Account
         Route::get('/admin/ad-account-requests', [AdminAdController::class, 'index']);

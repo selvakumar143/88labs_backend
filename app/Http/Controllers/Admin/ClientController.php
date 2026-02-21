@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
@@ -13,15 +15,19 @@ class ClientController extends Controller
     public function index()
     {
         $clients = Client::with('user')->get();
-        return view('clients.index', compact('clients'));
+        return response()->json([
+            'status' => 'success',
+            'data' => $clients,
+        ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'id' => 'required|unique:clients,id',
+            'clientCode' => 'nullable|string|max:255|unique:clients,clientCode',
             'clientName' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
             'country' => 'required',
             'phone' => 'required',
         ]);
@@ -30,19 +36,19 @@ class ClientController extends Controller
 
         try {
 
-            // 1️⃣ Create user (AUTO id, no overwrite)
+            // 1. Create user (auto id)
             $user = User::create([
                 'name' => $request->clientName,
                 'email' => $request->email,
-                'password' => Hash::make('123456'), // temporary password
+                'password' => Hash::make($request->password),
                 'email_verified_at' => now(),
             ]);
 
             $user->assignRole('customer');
 
-            // 2️⃣ Create client linked to that user
-            Client::create([
-                'id' => $request->id,
+            // 2. Create client linked to that user
+            $client = Client::create([
+                'clientCode' => $request->clientCode,
                 'clientName' => $request->clientName,
                 'country' => $request->country,
                 'email' => $request->email,
@@ -60,23 +66,47 @@ class ClientController extends Controller
                 'user_id' => $user->id, // AUTO GENERATED ID
             ]);
 
+            if (blank($client->clientCode)) {
+                $client->clientCode = 'CL-'.str_pad((string) $client->id, 4, '0', STR_PAD_LEFT);
+                $client->save();
+            }
+
             DB::commit();
 
-            return redirect()->route('clients.index')
-                ->with('success', 'Client created successfully');
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Client created successfully',
+                'data' => $client->load('user'),
+            ], 201);
 
         } catch (\Exception $e) {
 
             DB::rollBack();
-            return back()->withErrors('Something went wrong.');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Something went wrong.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 
     public function update(Request $request, Client $client)
     {
         $request->validate([
+            'clientCode' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('clients', 'clientCode')->ignore($client->id),
+            ],
             'clientName' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $client->user_id,
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($client->user_id),
+            ],
+            'country' => 'required',
+            'phone' => 'required',
         ]);
 
         DB::beginTransaction();
@@ -90,7 +120,7 @@ class ClientController extends Controller
             ]);
 
             // Update client data
-            $client->update([
+            $clientData = [
                 'clientName' => $request->clientName,
                 'country' => $request->country,
                 'email' => $request->email,
@@ -104,17 +134,30 @@ class ClientController extends Controller
                 'cooperationStart' => $request->cooperationStart,
                 'serviceFeePercent' => $request->serviceFeePercent,
                 'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
-            ]);
+            ];
+
+            if ($request->filled('clientCode')) {
+                $clientData['clientCode'] = $request->clientCode;
+            }
+
+            $client->update($clientData);
 
             DB::commit();
 
-            return redirect()->route('clients.index')
-                ->with('success', 'Client updated successfully');
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Client updated successfully',
+                'data' => $client->fresh()->load('user'),
+            ]);
 
         } catch (\Exception $e) {
 
             DB::rollBack();
-            return back()->withErrors('Something went wrong.');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Something went wrong.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -126,13 +169,19 @@ class ClientController extends Controller
             $client->user->delete(); // cascade will delete client
             DB::commit();
 
-            return redirect()->route('clients.index')
-                ->with('success', 'Client deleted successfully');
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Client deleted successfully',
+            ]);
 
         } catch (\Exception $e) {
 
             DB::rollBack();
-            return back()->withErrors('Something went wrong.');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Something went wrong.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 }

@@ -162,3 +162,88 @@ curl --request POST 'http://localhost:8000/api/admin/users' \
     }
   }'
 ```
+
+## Admin Clients API
+
+All endpoints below require an admin bearer token:
+
+- `Authorization: Bearer <admin_token>`
+- `Accept: application/json`
+- `Content-Type: application/json`
+
+Note: `id` is now auto-incremented by DB. You do not send `id` in create payload.
+
+### 1) Create Client
+
+`POST /api/admin/clients`
+
+```bash
+curl --request POST 'http://localhost:8000/api/admin/clients' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "clientCode":"CL-1001",
+    "clientName":"Acme Fashion LLC",
+    "email":"acme.client@example.com",
+    "password":"Client@123",
+    "country":"United Arab Emirates",
+    "phone":"+971501112233",
+    "clientType":"Agency",
+    "niche":"Fashion",
+    "marketCountry":"UAE",
+    "settlementMode":"Bank Transfer",
+    "statementCycle":"Monthly",
+    "settlementCurrency":"AED",
+    "cooperationStart":"2026-02-21",
+    "serviceFeePercent":"12.50",
+    "serviceFeeEffectiveTime":"2026-02-21 10:00:00"
+  }'
+```
+
+### 2) List Clients
+
+`GET /api/admin/clients`
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/clients' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Update Client
+
+`PUT /api/admin/clients/1`
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/clients/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "clientCode":"CL-1001",
+    "clientName":"Acme Fashion Group",
+    "email":"acme.client@example.com",
+    "country":"United Arab Emirates",
+    "phone":"+971509998877",
+    "clientType":"Agency",
+    "niche":"Fashion & Beauty",
+    "marketCountry":"UAE",
+    "settlementMode":"Bank Transfer",
+    "statementCycle":"Monthly",
+    "settlementCurrency":"AED",
+    "cooperationStart":"2026-02-21",
+    "serviceFeePercent":"10.00",
+    "serviceFeeEffectiveTime":"2026-03-01 00:00:00"
+  }'
+```
+
+### 4) Delete Client
+
+`DELETE /api/admin/clients/1`
+
+```bash
+curl --request DELETE 'http://localhost:8000/api/admin/clients/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```

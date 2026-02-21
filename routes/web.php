@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ClientController;
 use App\Http\Controllers\Web\ClientDashboardController;
 use App\Http\Controllers\Web\AdminDashboardController;
 
@@ -80,13 +79,3 @@ Route::middleware(['auth', 'role:admin|Admin'])
 Route::view('/test/login', 'test.login');
 Route::view('/test/client-dashboard', 'test.client-dashboard');
 Route::view('/test/admin-dashboard', 'test.admin-dashboard');
-
-/*
-|--------------------------------------------------------------------------
-| CLIENT MANAGEMENT (ADMIN ONLY)
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth', 'role:admin|Admin'])->group(function () {
-    Route::resource('clients', ClientController::class);
-});
