@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AdAccountRequestController as AdminAdController;
 use App\Http\Controllers\Client\WalletTopupController as ClientWallet;
 use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
+use App\Http\Controllers\Admin\UserManagementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +76,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
         Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
+
+        // Users
+        Route::get('/users', [UserManagementController::class, 'index']);
+        Route::put('/users/{id}', [UserManagementController::class, 'update']);
+        Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
     });
 
     /*
