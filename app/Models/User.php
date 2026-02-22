@@ -16,9 +16,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'email_verified_at'
+        'email_verified_at',
+        'status'
     ];
-
+    
     protected $hidden = [
         'password',
         'remember_token',
