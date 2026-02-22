@@ -12,13 +12,18 @@ class AdAccountRequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = AdAccountRequest::with('client');
+        $query = AdAccountRequest::with(['client.client']);
 
-        if ($request->status) {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        if ($request->search) {
+        $clientId = $request->input('client_id', $request->input('client'));
+        if (!empty($clientId) && $clientId !== 'all') {
+            $query->where('client_id', $clientId);
+        }
+
+        if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('request_id', 'like', "%{$request->search}%")
                   ->orWhereHas('client', function ($sub) use ($request) {
@@ -27,7 +32,11 @@ class AdAccountRequestController extends Controller
             });
         }
 
-        $data = $query->latest()->paginate(10);
+        $data = $query->latest()->paginate($request->integer('per_page', 10));
+        $data->getCollection()->transform(function ($item) {
+            $item->client_name = optional(optional($item->client)->client)->clientName;
+            return $item;
+        });
 
         return response()->json([
             'status' => 'success',

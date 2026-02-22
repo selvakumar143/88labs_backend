@@ -61,6 +61,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Clients
         Route::get('/admin/clients', [ClientController::class, 'index']);
+        Route::get('/admin/clients/{client}', [ClientController::class, 'show']);
         Route::post('/admin/clients', [ClientController::class, 'store']);
         Route::put('/admin/clients/{client}', [ClientController::class, 'update']);
         Route::delete('/admin/clients/{client}', [ClientController::class, 'destroy']);

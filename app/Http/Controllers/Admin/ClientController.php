@@ -12,9 +12,27 @@ use Illuminate\Support\Facades\DB;
 
 class ClientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $clients = Client::with('user')->get();
+        $query = Client::with('user');
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->trim();
+            $query->where('clientName', 'like', "%{$search}%");
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $status = strtolower((string) $request->status);
+
+            if (in_array($status, ['active', 'enabled', '1', 'true'], true)) {
+                $query->where('enabled', true);
+            } elseif (in_array($status, ['inactive', 'disabled', '0', 'false'], true)) {
+                $query->where('enabled', false);
+            }
+        }
+
+        $clients = $query->latest()->paginate($request->integer('per_page', 10));
+
         return response()->json([
             'status' => 'success',
             'data' => $clients,
@@ -88,6 +106,14 @@ class ClientController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function show(Client $client)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $client->load('user'),
+        ]);
     }
 
     public function update(Request $request, Client $client)

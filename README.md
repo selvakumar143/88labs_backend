@@ -205,13 +205,34 @@ curl --request POST 'http://localhost:8000/api/admin/clients' \
 
 `GET /api/admin/clients`
 
+Optional query params:
+- `search`: filter by `clientName` (partial match)
+- `status`: `all` | `active` | `inactive` (also supports `enabled`/`disabled`)
+- `per_page`: items per page (default `10`)
+
 ```bash
 curl --request GET 'http://localhost:8000/api/admin/clients' \
   --header 'Authorization: Bearer <admin_token>' \
   --header 'Accept: application/json'
 ```
 
-### 3) Update Client
+```bash
+curl --request GET 'http://localhost:8000/api/admin/clients?search=Acme&status=active&per_page=20' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Get Single Client
+
+`GET /api/admin/clients/1`
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/clients/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Update Client
 
 `PUT /api/admin/clients/1`
 
@@ -238,7 +259,7 @@ curl --request PUT 'http://localhost:8000/api/admin/clients/1' \
   }'
 ```
 
-### 4) Delete Client
+### 5) Delete Client
 
 `DELETE /api/admin/clients/1`
 
@@ -305,11 +326,13 @@ curl --request GET 'http://localhost:8000/api/client/ad-account-requests?status=
 `GET /api/admin/ad-account-requests`
 
 Optional query params:
-- `status` (`pending|approved|rejected`)
+- `status` (`pending|approved|rejected|all`)
+- `client_id` (specific client user id, or `all`)
 - `search` (request id or client name)
+- `per_page` (items per page, default `10`)
 
 ```bash
-curl --request GET 'http://localhost:8000/api/admin/ad-account-requests?status=pending&search=REQ-' \
+curl --request GET 'http://localhost:8000/api/admin/ad-account-requests?status=pending&client_id=5&search=REQ-&per_page=20' \
   --header 'Authorization: Bearer <admin_token>' \
   --header 'Accept: application/json'
 ```
@@ -449,4 +472,42 @@ curl --request PUT 'http://localhost:8000/api/admin/wallet-topups/1' \
   --data '{
     "status":"rejected"
   }'
+```
+
+## Run Laravel In Background (Keep Running After Terminal Close)
+
+Start server in background and save PID:
+
+```bash
+cd /var/www/88laps
+nohup php artisan serve --host=0.0.0.0 --port=8000 > storage/logs/artisan-serve.log 2>&1 < /dev/null &
+echo $! > storage/artisan-serve.pid
+```
+
+Check running process:
+
+```bash
+cat storage/artisan-serve.pid
+ps -fp "$(cat storage/artisan-serve.pid)"
+```
+
+View live logs:
+
+```bash
+tail -f storage/logs/artisan-serve.log
+```
+
+Stop server:
+
+```bash
+kill "$(cat storage/artisan-serve.pid)"
+rm -f storage/artisan-serve.pid
+```
+
+Restart server:
+
+```bash
+kill "$(cat storage/artisan-serve.pid)" 2>/dev/null || true
+nohup php artisan serve --host=0.0.0.0 --port=8000 > storage/logs/artisan-serve.log 2>&1 < /dev/null &
+echo $! > storage/artisan-serve.pid
 ```
