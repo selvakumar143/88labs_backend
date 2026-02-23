@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
+use App\Http\Controllers\Api\AdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -96,6 +97,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index']);
         Route::put('/users/{id}', [UserManagementController::class, 'update']);
         Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+
+        // Admin Dashboard
+        Route::get('/admin', [AdminController::class, 'index']);
     });
 
     /*
