@@ -32,6 +32,16 @@ class WalletTopup extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    public function clientProfileByUserId()
+    {
+        return $this->belongsTo(Client::class, 'client_id', 'user_id');
+    }
+
+    public function clientProfileByClientId()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
+
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
