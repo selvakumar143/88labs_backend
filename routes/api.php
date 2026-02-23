@@ -50,18 +50,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/wallet-topup', [ClientWallet::class, 'store']);
         Route::get('/my-wallet-topups', [ClientWallet::class, 'myRequests']);
 
-        // Dashboard Summary
-        Route::get('/client/dashboard-summary', [ClientDashboardController::class, 'summary']);
-
-        // Line Chart of monthly topups
-        Route::get('/client/monthly-topups', [ClientDashboardController::class, 'monthlyTopups']);
-
-        // recent topups
-        Route::get('/client/recent-topups', [ClientDashboardController::class, 'recentTopups']);
-
-        // Wallet total count and add balance
-        Route::get('/client/wallet-summary', [ClientDashboardController::class, 'walletSummary']);
-        Route::post('/client/add-balance', [ClientDashboardController::class, 'addBalance']);
+        // Dashboard
+        Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
     });
 
     /*
