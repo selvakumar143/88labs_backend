@@ -52,6 +52,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Dashboard
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
+        Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
     });
 
     /*

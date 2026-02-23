@@ -12,63 +12,66 @@ use App\Models\AdAccountRequest;
 
 class ClientDashboardController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | MAIN DASHBOARD
+    | /client/dashboard
+    |--------------------------------------------------------------------------
+    */
+
     public function dashboard(Request $request)
     {
         $clientId = Auth::id();
         $year = $request->input('year', now()->year);
-        $startDate = $request->input('start_date');
-        $endDate   = $request->input('end_date');
-    
+        
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ Summary Counts
+        | 1️⃣ SUMMARY → TOTAL APPROVED AMOUNT (USD + EUR)
         |--------------------------------------------------------------------------
         */
     
-        $approvedTopupsCount = WalletTopup::where('client_id', $clientId)
+        $approvedTotals = WalletTopup::where('client_id', $clientId)
             ->where('status', WalletTopup::STATUS_APPROVED)
-            ->count();
-    
-        $activeAdAccountsCount = AdAccountRequest::where('client_id', $clientId)
-            ->where('status', AdAccountRequest::STATUS_APPROVED)
-            ->count();
-    
+            ->select('currency', DB::raw('SUM(amount) as total'))
+            ->groupBy('currency')
+            ->pluck('total', 'currency');
     
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ Monthly Topups (Graph)
+        | MONTHLY TOTAL AMOUNT (USD ONLY - BASED ON APPROVAL DATE)
         |--------------------------------------------------------------------------
         */
-    
-        $monthlyRaw = WalletTopup::where('client_id', $clientId)
-            ->where('status', WalletTopup::STATUS_APPROVED)
+        $year = 2026; // or now()->year if needed
+
+        $monthlyRaw = WalletTopup::where('status', WalletTopup::STATUS_APPROVED)
+            ->where('currency', 'USD')
+            ->whereNotNull('approved_at')
             ->whereYear('approved_at', $year)
-            ->select(
-                DB::raw('MONTH(approved_at) as month'),
-                DB::raw('SUM(amount) as total_amount')
-            )
-            ->groupBy('month')
-            ->pluck('total_amount', 'month');
-    
+            ->selectRaw('MONTH(approved_at) as month')
+            ->selectRaw('SUM(amount) as total_amount')
+            ->groupBy(DB::raw('MONTH(approved_at)'))
+            ->pluck('total_amount', 'month')
+            ->toArray();
+        
         $monthlyData = [];
-    
+        
         for ($i = 1; $i <= 12; $i++) {
             $monthlyData[] = [
                 'month' => Carbon::create()->month($i)->format('M'),
-                'total' => $monthlyRaw[$i] ?? 0
+                'total' => (float) ($monthlyRaw[$i] ?? 0),
             ];
         }
-    
-    
         /*
         |--------------------------------------------------------------------------
-        | 3️⃣ Recent Topups (Latest 5)
+        | 3️⃣ RECENT TOPUPS (Approved + Pending + Account Name)
         |--------------------------------------------------------------------------
         */
     
         $recentTopups = DB::table('wallet_topups')
             ->leftJoin('ad_account_requests', 'wallet_topups.client_id', '=', 'ad_account_requests.client_id')
             ->where('wallet_topups.client_id', $clientId)
+            ->orderByDesc('wallet_topups.id')
+            ->limit(5)
             ->select(
                 'wallet_topups.request_id',
                 'wallet_topups.amount',
@@ -77,49 +80,22 @@ class ClientDashboardController extends Controller
                 'wallet_topups.approved_at',
                 'ad_account_requests.business_name'
             )
-            ->orderByDesc('wallet_topups.id')
-            ->limit(5)
             ->get()
             ->map(function ($item) {
                 return [
                     'txn_id'     => $item->request_id,
                     'ad_account' => $item->business_name ?? '-',
-                    'amount'     => $item->amount,
-                    'status'     => $item->status === 'approved'
-                                    ? 'DONE'
-                                    : strtoupper($item->status),
+                    'amount'     => (float) $item->amount,
+                    'status'     => strtoupper($item->status),
                     'date'       => Carbon::parse(
-                                        $item->approved_at ?? $item->created_at
-                                    )->format('d/m/Y'),
+                        $item->approved_at ?? $item->created_at
+                    )->format('d/m/Y'),
                 ];
             });
     
-    
         /*
         |--------------------------------------------------------------------------
-        | 4️⃣ Wallet Balance (USD / EUR with date filter)
-        |--------------------------------------------------------------------------
-        */
-    
-        $walletQuery = WalletTopup::where('client_id', $clientId)
-            ->where('status', WalletTopup::STATUS_APPROVED);
-    
-        if ($startDate && $endDate) {
-            $walletQuery->whereBetween('approved_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ]);
-        }
-    
-        $balances = $walletQuery
-            ->select('currency', DB::raw('SUM(amount) as total'))
-            ->groupBy('currency')
-            ->pluck('total', 'currency');
-    
-    
-        /*
-        |--------------------------------------------------------------------------
-        | Final Response
+        | FINAL RESPONSE
         |--------------------------------------------------------------------------
         */
     
@@ -127,15 +103,49 @@ class ClientDashboardController extends Controller
             'status' => 'success',
             'data' => [
                 'summary' => [
-                    'approved_wallet_topups_count' => $approvedTopupsCount,
-                    'active_ad_accounts_count' => $activeAdAccountsCount,
-                ],
-                'wallet' => [
-                    'USD' => $balances['USD'] ?? 0,
-                    'EUR' => $balances['EUR'] ?? 0,
+                    'USD_total' => (float) ($approvedTotals['USD'] ?? 0),
+                    'EUR_total' => (float) ($approvedTotals['EUR'] ?? 0),
                 ],
                 'monthly_topups' => $monthlyData,
                 'recent_topups' => $recentTopups
+            ]
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | WALLET ONLY (With Date Filter)
+    | /client/dashboard/wallet
+    |--------------------------------------------------------------------------
+    */
+
+    public function wallet(Request $request)
+    {
+        $clientId = Auth::id();
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
+
+        $query = WalletTopup::where('client_id', $clientId)
+            ->where('status', WalletTopup::STATUS_APPROVED);
+
+        if ($startDate) {
+            $query->whereDate('approved_at', '>=', Carbon::parse($startDate));
+        }
+
+        if ($endDate) {
+            $query->whereDate('approved_at', '<=', Carbon::parse($endDate));
+        }
+
+        $balances = $query
+            ->select('currency', DB::raw('SUM(amount) as total'))
+            ->groupBy('currency')
+            ->pluck('total', 'currency');
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'USD' => (float) ($balances['USD'] ?? 0),
+                'EUR' => (float) ($balances['EUR'] ?? 0),
             ]
         ]);
     }
