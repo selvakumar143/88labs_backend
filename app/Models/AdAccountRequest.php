@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\Client;
 
 class AdAccountRequest extends Model
 {
@@ -33,6 +34,16 @@ class AdAccountRequest extends Model
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function clientProfileByUserId()
+    {
+        return $this->belongsTo(Client::class, 'client_id', 'user_id');
+    }
+
+    public function clientProfileByClientId()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function approver()
