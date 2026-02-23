@@ -18,28 +18,37 @@ class ClientDashboardController extends Controller
     
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
-        $year      = $request->input('year', now()->year);
+        $year      = $request->input('year');
     
         /*
         |--------------------------------------------------------------------------
-        | BASE QUERY (Approved Only)
+        | BASE FILTERED QUERY (Approved Only)
         |--------------------------------------------------------------------------
         */
     
         $baseQuery = WalletTopup::where('client_id', $clientId)
             ->where('status', WalletTopup::STATUS_APPROVED);
     
-        if ($startDate) {
-            $baseQuery->whereDate('approved_at', '>=', Carbon::parse($startDate));
+        // If date range exists → use it
+        if ($startDate && $endDate) {
+            $baseQuery->whereBetween('approved_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        }
+        // If only year exists → use year
+        elseif ($year) {
+            $baseQuery->whereYear('approved_at', $year);
         }
     
-        if ($endDate) {
-            $baseQuery->whereDate('approved_at', '<=', Carbon::parse($endDate));
-        }
+        // Clone for reuse
+        $filteredTopups = (clone $baseQuery)->get();
+    
+        $hasData = $filteredTopups->count() > 0;
     
         /*
         |--------------------------------------------------------------------------
-        | 1️⃣ TOTAL BALANCE (USD + EUR)
+        | 1️⃣ TOTAL BALANCE
         |--------------------------------------------------------------------------
         */
     
@@ -48,37 +57,55 @@ class ClientDashboardController extends Controller
             ->groupBy('currency')
             ->pluck('total', 'currency');
     
+        $usdBalance = $hasData ? (float) ($balances['USD'] ?? 0) : null;
+        $eurBalance = $hasData ? (float) ($balances['EUR'] ?? 0) : null;
+    
         /*
         |--------------------------------------------------------------------------
-        | 2️⃣ ACTIVE APPROVED TOPUPS TOTAL AMOUNT
+        | 2️⃣ APPROVED TOPUPS TOTAL
+        |--------------------------------------------------------------------------
+        */
+    
+        $approvedTopupsTotal = $hasData
+            ? (float) (clone $baseQuery)->sum('amount')
+            : null;
+    
+        /*
+        |--------------------------------------------------------------------------
+        | 3️⃣ ACTIVE AD ACCOUNTS (FILTERED)
         |--------------------------------------------------------------------------
         */
 
-        $approvedTopupsTotal = (clone $baseQuery)->sum('amount');
-            
-        /*
-        |--------------------------------------------------------------------------
-        | 3️⃣ ACTIVE AD ACCOUNTS COUNT
-        |--------------------------------------------------------------------------
-        */
+        $accountQuery = AdAccountRequest::where('ad_account_requests.client_id', $clientId)
+            ->where('ad_account_requests.status', 'approved');
 
-        $activeAdAccounts = AdAccountRequest::where('client_id', $clientId)
-            ->where('status', 'approved')
-            ->count();
-            
+        // If date range is provided
+        if ($startDate && $endDate) {
+            $accountQuery->whereBetween('ad_account_requests.approved_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        }
+        // Else if only year is provided
+        elseif ($year) {
+            $accountQuery->whereYear('ad_account_requests.approved_at', $year);
+        }
+
+        $activeAdAccounts = $accountQuery->count();
+        $activeAdAccounts = $activeAdAccounts > 0 ? $activeAdAccounts : null;
+    
         /*
         |--------------------------------------------------------------------------
-        | 4️⃣ MONTHLY USD LINE CHART
+        | 4️⃣ MONTHLY USD CHART
         |--------------------------------------------------------------------------
         */
     
         $monthlyRaw = (clone $baseQuery)
             ->where('currency', 'USD')
-            ->whereYear('approved_at', $year)
             ->selectRaw('MONTH(approved_at) as month')
-            ->selectRaw('SUM(amount) as total_amount')
+            ->selectRaw('SUM(amount) as total')
             ->groupBy(DB::raw('MONTH(approved_at)'))
-            ->pluck('total_amount', 'month')
+            ->pluck('total', 'month')
             ->toArray();
     
         $monthlyData = [];
@@ -86,58 +113,75 @@ class ClientDashboardController extends Controller
         for ($i = 1; $i <= 12; $i++) {
             $monthlyData[] = [
                 'month' => Carbon::create()->month($i)->format('M'),
-                'total' => (float) ($monthlyRaw[$i] ?? 0),
+                'total' => $hasData && isset($monthlyRaw[$i])
+                    ? (float) $monthlyRaw[$i]
+                    : null
             ];
         }
     
         /*
         |--------------------------------------------------------------------------
-        | 5️⃣ RECENT TOPUPS TABLE
+        | 5️⃣ RECENT TOPUPS (FILTERED)
         |--------------------------------------------------------------------------
         */
     
-        $recentTopups = DB::table('wallet_topups')
-        ->leftJoin('ad_account_requests', 'wallet_topups.client_id', '=', 'ad_account_requests.client_id')
-        ->where('wallet_topups.client_id', $clientId)
-        ->orderByDesc('wallet_topups.id')
-        ->limit(5)
-        ->select(
-            'wallet_topups.request_id',
-            'wallet_topups.amount',
-            'wallet_topups.status',
-            'wallet_topups.created_at',
-            'wallet_topups.approved_at',
-            'ad_account_requests.business_name'
-        )
-        ->get()
-        ->map(function ($item) {
-            return [
-                'txn_id'     => $item->request_id,
-                'ad_account' => $item->business_name ?? '-',
-                'amount'     => (float) $item->amount,
-                'status'     => strtoupper($item->status),
-                'date'       => Carbon::parse(
-                    $item->approved_at ?? $item->created_at
-                )->format('d/m/Y'),
-            ];
-        });
+        $recentQuery = WalletTopup::where('wallet_topups.client_id', $clientId);
+
+        if ($startDate && $endDate) {
+            $recentQuery->whereBetween('wallet_topups.approved_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        } elseif ($year) {
+            $recentQuery->whereYear('wallet_topups.approved_at', $year);
+        }
+        
+        $recentTopups = $recentQuery
+            ->leftJoin(
+                'ad_account_requests',
+                'wallet_topups.client_id',
+                '=',
+                'ad_account_requests.client_id'
+            )
+            ->orderByDesc('wallet_topups.id')
+            ->limit(5)
+            ->select(
+                'wallet_topups.request_id',
+                'wallet_topups.amount',
+                'wallet_topups.status',
+                'wallet_topups.created_at',
+                'wallet_topups.approved_at',
+                'ad_account_requests.business_name'
+            )
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'txn_id'     => $item->request_id,
+                    'ad_account' => $item->business_name ?? null,
+                    'amount'     => (float) $item->amount,
+                    'status'     => strtoupper($item->status),
+                    'date'       => Carbon::parse(
+                        $item->approved_at ?? $item->created_at
+                    )->format('d/m/Y'),
+                ];
+            });
     
         /*
         |--------------------------------------------------------------------------
-        | FINAL JSON RESPONSE
+        | FINAL RESPONSE
         |--------------------------------------------------------------------------
         */
     
         return response()->json([
             'status' => 'success',
             'data' => [
-                'approved_topups_total' => (float) $approvedTopupsTotal,
-                'active_ad_accounts' => $activeAdAccounts,
-                'monthly_usd_chart' => $monthlyData,
-                'recent_topups' => $recentTopups,
+                'approved_topups_total' => $approvedTopupsTotal,
+                'active_ad_accounts'    => $activeAdAccounts,
+                'monthly_usd_chart'     => $monthlyData,
+                'recent_topups'         => $recentTopups,
                 'total_balance' => [
-                    'USD' => (float) ($balances['USD'] ?? 0),
-                    'EUR' => (float) ($balances['EUR'] ?? 0),
+                    'USD' => $usdBalance,
+                    'EUR' => $eurBalance,
                 ],
             ]
         ]);
