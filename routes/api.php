@@ -49,10 +49,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Wallet
         Route::post('/wallet-topup', [ClientWallet::class, 'store']);
         Route::get('/my-wallet-topups', [ClientWallet::class, 'myRequests']);
+        Route::get('/client/wallet-summary', [ClientDashboardController::class, 'walletSummary']);
 
         // Dashboard
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
         Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
+        Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
     });
 
     /*
