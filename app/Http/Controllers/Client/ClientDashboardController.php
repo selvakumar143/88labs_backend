@@ -9,30 +9,60 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\WalletTopup;
 use App\Models\AdAccountRequest;
+use App\Models\TopRequest;
 
 class ClientDashboardController extends Controller
 {
     private function getWalletBalances(int $clientId, ?string $startDate = null, ?string $endDate = null): array
     {
-        $query = WalletTopup::where('client_id', $clientId)
+        $walletTopupQuery = WalletTopup::where('client_id', $clientId)
             ->whereRaw('LOWER(status) = ?', [WalletTopup::STATUS_APPROVED]);
 
         if ($startDate) {
-            $query->whereDate('approved_at', '>=', Carbon::parse($startDate));
+            $walletTopupQuery->whereDate('approved_at', '>=', Carbon::parse($startDate));
         }
 
         if ($endDate) {
-            $query->whereDate('approved_at', '<=', Carbon::parse($endDate));
+            $walletTopupQuery->whereDate('approved_at', '<=', Carbon::parse($endDate));
         }
 
-        $balances = $query
+        $walletTopupsByCurrency = $walletTopupQuery
             ->selectRaw('UPPER(currency) as currency, SUM(amount) as total')
             ->groupBy(DB::raw('UPPER(currency)'))
             ->pluck('total', 'currency');
 
+        $adTopupQuery = TopRequest::where('client_id', $clientId)
+            ->whereRaw('LOWER(status) = ?', [TopRequest::STATUS_APPROVED]);
+
+        if ($startDate) {
+            $adTopupQuery->whereDate('updated_at', '>=', Carbon::parse($startDate));
+        }
+
+        if ($endDate) {
+            $adTopupQuery->whereDate('updated_at', '<=', Carbon::parse($endDate));
+        }
+
+        $adTopupsByCurrency = $adTopupQuery
+            ->selectRaw('UPPER(currency) as currency, SUM(amount) as total')
+            ->groupBy(DB::raw('UPPER(currency)'))
+            ->pluck('total', 'currency');
+
+        $currencyTotals = [];
+        $allCurrencies = collect($walletTopupsByCurrency->keys())
+            ->merge($adTopupsByCurrency->keys())
+            ->unique()
+            ->values();
+
+        foreach ($allCurrencies as $currency) {
+            $credited = (float) ($walletTopupsByCurrency[$currency] ?? 0);
+            $deducted = (float) ($adTopupsByCurrency[$currency] ?? 0);
+            $currencyTotals[$currency] = $credited - $deducted;
+        }
+
         return [
-            'usd_total' => (float) ($balances['USD'] ?? 0),
-            'eur_total' => (float) ($balances['EUR'] ?? 0),
+            'usd_total' => (float) ($currencyTotals['USD'] ?? 0),
+            'eur_total' => (float) ($currencyTotals['EUR'] ?? 0),
+            'currency_totals' => $currencyTotals,
         ];
     }
 
@@ -61,11 +91,7 @@ class ClientDashboardController extends Controller
         |--------------------------------------------------------------------------
         */
     
-        $approvedTotals = WalletTopup::where('client_id', $clientId)
-            ->whereRaw('LOWER(status) = ?', [WalletTopup::STATUS_APPROVED])
-            ->selectRaw('UPPER(currency) as currency, SUM(amount) as total')
-            ->groupBy(DB::raw('UPPER(currency)'))
-            ->pluck('total', 'currency');
+        $walletBalances = $this->getWalletBalances($clientId);
     
         /*
         |--------------------------------------------------------------------------
@@ -135,8 +161,9 @@ class ClientDashboardController extends Controller
             'status' => 'success',
             'data' => [
                 'summary' => [
-                    'USD_total' => (float) ($approvedTotals['USD'] ?? 0),
-                    'EUR_total' => (float) ($approvedTotals['EUR'] ?? 0),
+                    'USD_total' => (float) ($walletBalances['usd_total'] ?? 0),
+                    'EUR_total' => (float) ($walletBalances['eur_total'] ?? 0),
+                    'currency_totals' => $walletBalances['currency_totals'] ?? [],
                     'total_active_ads_account' => (int) $totalActiveAdsAccount,
                 ],
                 'monthly_topups' => $monthlyData,

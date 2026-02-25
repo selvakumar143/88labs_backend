@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\AdAccountRequestController as AdminAdController;
 
 use App\Http\Controllers\Client\WalletTopupController as ClientWallet;
 use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
+use App\Http\Controllers\Client\TopRequestController as ClientTopRequest;
+use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
@@ -51,6 +53,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/my-wallet-topups', [ClientWallet::class, 'myRequests']);
         Route::get('/client/wallet-summary', [ClientDashboardController::class, 'walletSummary']);
 
+        // Top Requests
+        Route::post('/top-requests', [ClientTopRequest::class, 'store']);
+        Route::get('/my-top-requests', [ClientTopRequest::class, 'myRequests']);
+
         // Dashboard
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
         Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
@@ -81,6 +87,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Wallet
         Route::get('/admin/wallet-topups', [AdminWallet::class, 'index']);
         Route::put('/admin/wallet-topups/{id}', [AdminWallet::class, 'updateStatus']);
+
+        // Top Requests
+        Route::get('/admin/top-requests', [AdminTopRequest::class, 'index']);
+        Route::put('/admin/top-requests/{id}', [AdminTopRequest::class, 'update']);
+        Route::delete('/admin/top-requests/{id}', [AdminTopRequest::class, 'destroy']);
 
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
