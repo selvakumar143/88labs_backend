@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WalletTopup;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
@@ -76,12 +77,27 @@ class WalletTopupController extends Controller
         ]);
 
         $topup = WalletTopup::findOrFail($id);
+        $previousStatus = $topup->status;
 
         $topup->update([
             'status' => $validated['status'],
             'approved_by' => Auth::id(),
             'approved_at' => now()
         ]);
+
+        if ($previousStatus !== $validated['status']) {
+            NotificationDispatcher::notifyClient(
+                client: $topup->client,
+                eventType: 'wallet_topup_status_updated',
+                title: 'Wallet Topup Request Updated',
+                message: "Your wallet topup request {$topup->request_id} is {$validated['status']}.",
+                meta: [
+                    'wallet_topup_id' => $topup->id,
+                    'request_id' => $topup->request_id,
+                    'status' => $validated['status'],
+                ]
+            );
+        }
 
         $updatedTopup = $topup->fresh([
             'client.client',

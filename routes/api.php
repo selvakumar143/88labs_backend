@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,6 +62,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
         Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
         Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
+
+        // Notifications
+        Route::get('/client/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/client/notifications/unread', [NotificationController::class, 'unread']);
+        Route::get('/client/notifications/all', [NotificationController::class, 'all']);
+        Route::put('/client/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/client/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     });
 
     /*
@@ -105,6 +113,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Admin Dashboard
         Route::get('/admin', [AdminController::class, 'index']);
+
+        // Notifications
+        Route::get('/admin/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/admin/notifications/unread', [NotificationController::class, 'unread']);
+        Route::get('/admin/notifications/all', [NotificationController::class, 'all']);
+        Route::put('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     });
 
     /*

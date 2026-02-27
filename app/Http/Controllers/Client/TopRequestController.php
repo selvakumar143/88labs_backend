@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\TopRequest;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,21 @@ class TopRequestController extends Controller
             'currency' => strtoupper($validated['currency']),
             'status' => TopRequest::STATUS_PENDING,
         ]);
+
+        NotificationDispatcher::notifyAdmins(
+            eventType: 'top_request_created',
+            title: 'New Topup Request',
+            message: Auth::user()->name . " submitted topup request #{$data->id}.",
+            meta: [
+                'top_request_id' => $data->id,
+                'client_id' => Auth::id(),
+                'client_name' => Auth::user()->name,
+                'ad_account_request_id' => $data->ad_account_request_id,
+                'amount' => $data->amount,
+                'currency' => $data->currency,
+                'status' => $data->status,
+            ]
+        );
 
         return response()->json([
             'status' => 'success',

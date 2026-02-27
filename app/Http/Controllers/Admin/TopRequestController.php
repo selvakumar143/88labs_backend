@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TopRequest;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -61,9 +62,26 @@ class TopRequestController extends Controller
         ]);
 
         $topRequest = TopRequest::findOrFail($id);
+        $previousStatus = $topRequest->status;
         $topRequest->update([
             'status' => $validated['status'],
         ]);
+
+        if ($previousStatus !== $validated['status']) {
+            NotificationDispatcher::notifyClient(
+                client: $topRequest->client,
+                eventType: 'top_request_status_updated',
+                title: 'Topup Request Updated',
+                message: "Your topup request #{$topRequest->id} is {$validated['status']}.",
+                meta: [
+                    'top_request_id' => $topRequest->id,
+                    'ad_account_request_id' => $topRequest->ad_account_request_id,
+                    'status' => $validated['status'],
+                    'amount' => $topRequest->amount,
+                    'currency' => $topRequest->currency,
+                ]
+            );
+        }
 
         return response()->json([
             'status' => 'success',

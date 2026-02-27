@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\WalletTopup;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,6 +27,20 @@ class WalletTopupController extends Controller
             'transaction_hash' => $request->transaction_hash,
             'status' => WalletTopup::STATUS_PENDING
         ]);
+
+        NotificationDispatcher::notifyAdmins(
+            eventType: 'wallet_topup_created',
+            title: 'New Wallet Topup Request',
+            message: Auth::user()->name . " submitted wallet topup {$data->request_id}.",
+            meta: [
+                'wallet_topup_id' => $data->id,
+                'request_id' => $data->request_id,
+                'client_id' => Auth::id(),
+                'client_name' => Auth::user()->name,
+                'amount' => $data->amount,
+                'status' => $data->status,
+            ]
+        );
 
         return response()->json([
             'status' => 'success',
