@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
 use App\Http\Controllers\Client\TopRequestController as ClientTopRequest;
 use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
+use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
@@ -113,6 +114,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
         Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
+
+        // Business Managers
+        Route::get('/admin/business-managers', [AdminBusinessManager::class, 'index']);
+        Route::get('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'show']);
+        Route::post('/admin/business-managers', [AdminBusinessManager::class, 'store']);
+        Route::put('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'update']);
+        Route::delete('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'destroy']);
 
         // Users
         Route::get('/users', [UserManagementController::class, 'index']);

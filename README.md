@@ -569,6 +569,112 @@ curl --request DELETE 'http://localhost:8000/api/admin/top-requests/1' \
   --header 'Accept: application/json'
 ```
 
+## Business Manager API
+
+All endpoints below require an admin bearer token:
+
+- `Authorization: Bearer <admin_token>`
+- `Accept: application/json`
+- `Content-Type: application/json`
+
+### 1) Create Business Manager
+
+`POST /api/admin/business-managers`
+
+Required fields:
+- `name` (string, max `255`)
+- `mail` (valid email, max `255`, unique)
+- `contact` (string, max `50`)
+
+Optional fields:
+- `status` (`active|inactive`, default: `active`)
+
+```bash
+curl --request POST 'http://localhost:8000/api/admin/business-managers' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name":"Acme BM",
+    "mail":"bm@acme.com",
+    "contact":"+1-555-1234",
+    "status":"active"
+  }'
+```
+
+### 2) List Business Managers
+
+`GET /api/admin/business-managers`
+
+Optional query params:
+- `search` = name / mail / contact (partial match)
+- `status` = `active|inactive|all`
+- `per_page` = items per page (default `10`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/business-managers' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+Filter example:
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/business-managers?search=acme&status=active&per_page=20' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Get Single Business Manager
+
+`GET /api/admin/business-managers/1`
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/business-managers/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Update Business Manager
+
+`PUT /api/admin/business-managers/1`
+
+Updatable fields:
+- `name` (string, max `255`)
+- `mail` (valid email, max `255`, unique except current row)
+- `contact` (string, max `50`)
+- `status` (`active|inactive`)
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/business-managers/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name":"Acme BM Updated",
+    "mail":"bm.updated@acme.com",
+    "contact":"+1-555-9999",
+    "status":"inactive"
+  }'
+```
+
+### 5) Delete Business Manager
+
+`DELETE /api/admin/business-managers/1`
+
+```bash
+curl --request DELETE 'http://localhost:8000/api/admin/business-managers/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### Common Errors
+
+- `401 Unauthorized` (token missing/invalid)
+- `403 Forbidden` (authenticated user is not admin)
+- `404 Not Found` (resource id does not exist)
+- `422 Unprocessable Entity` (validation errors)
+
 ## Run Laravel In Background (Keep Running After Terminal Close)
 
 Start server in background and save PID:
