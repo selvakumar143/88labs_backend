@@ -11,10 +11,13 @@ use App\Http\Controllers\Admin\AdAccountRequestController as AdminAdController;
 
 use App\Http\Controllers\Client\WalletTopupController as ClientWallet;
 use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
+use App\Http\Controllers\Client\TopRequestController as ClientTopRequest;
+use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,9 +52,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Wallet
         Route::post('/wallet-topup', [ClientWallet::class, 'store']);
         Route::get('/my-wallet-topups', [ClientWallet::class, 'myRequests']);
+        Route::get('/client/wallet-summary', [ClientDashboardController::class, 'walletSummary']);
+
+        // Top Requests
+        Route::post('/top-requests', [ClientTopRequest::class, 'store']);
+        Route::get('/my-top-requests', [ClientTopRequest::class, 'myRequests']);
 
         // Dashboard
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
+        Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
+        Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
+
+        // Notifications
+        Route::get('/client/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/client/notifications/unread', [NotificationController::class, 'unread']);
+        Route::get('/client/notifications/all', [NotificationController::class, 'all']);
+        Route::put('/client/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/client/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     });
 
     /*
@@ -79,17 +96,30 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/admin/wallet-topups', [AdminWallet::class, 'index']);
         Route::put('/admin/wallet-topups/{id}', [AdminWallet::class, 'updateStatus']);
 
+        // Top Requests
+        Route::get('/admin/top-requests', [AdminTopRequest::class, 'index']);
+        Route::put('/admin/top-requests/{id}', [AdminTopRequest::class, 'update']);
+        Route::delete('/admin/top-requests/{id}', [AdminTopRequest::class, 'destroy']);
+
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
         Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
 
         // Users
         Route::get('/users', [UserManagementController::class, 'index']);
+        Route::get('/users/{id}', [UserManagementController::class, 'show']);
         Route::put('/users/{id}', [UserManagementController::class, 'update']);
         Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
 
         // Admin Dashboard
         Route::get('/admin', [AdminController::class, 'index']);
+
+        // Notifications
+        Route::get('/admin/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/admin/notifications/unread', [NotificationController::class, 'unread']);
+        Route::get('/admin/notifications/all', [NotificationController::class, 'all']);
+        Route::put('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     });
 
     /*

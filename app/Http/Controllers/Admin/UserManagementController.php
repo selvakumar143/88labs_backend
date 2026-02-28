@@ -15,15 +15,61 @@ class UserManagementController extends Controller
     | 1️⃣ List Users
     |--------------------------------------------------------------------------
     */
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::select('id','name','email','status','created_at')
-            ->orderBy('id','desc')
-            ->get();
+        $query = User::select('id', 'name', 'email', 'status', 'created_at')
+            ->with([
+                'roles:id,name',
+                'client:id,user_id,clientName',
+            ]);
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->trim();
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('role') && $request->role !== 'all') {
+            $role = $request->string('role')->trim()->toString();
+            $query->whereHas('roles', function ($q) use ($role) {
+                $q->where('name', $role);
+            });
+        }
+
+        $users = $query->latest()
+            ->paginate($request->integer('per_page', 10));
+        $users->getCollection()->transform(function ($user) {
+            $user->roles = $user->roles->pluck('name')->values();
+            $user->client_name = optional($user->client)->clientName;
+            unset($user->client);
+
+            return $user;
+        });
 
         return response()->json([
             'status' => 'success',
-            'users' => $users
+            'data' => $users,
+        ]);
+    }
+
+    public function show($id)
+    {
+        $user = User::select('id', 'name', 'email', 'status', 'created_at')
+            ->with([
+                'roles:id,name',
+                'client:id,user_id,clientName',
+            ])
+            ->findOrFail($id);
+
+        $user->roles = $user->roles->pluck('name')->values();
+        $user->client_name = optional($user->client)->clientName;
+        unset($user->client);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $user,
         ]);
     }
 

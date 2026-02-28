@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdAccountRequest;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class AdAccountRequestController extends Controller
 {
@@ -45,6 +45,20 @@ class AdAccountRequestController extends Controller
             'number_of_accounts' => $request->number_of_accounts,
             'status' => AdAccountRequest::STATUS_PENDING,
         ]);
+
+        NotificationDispatcher::notifyAdmins(
+            eventType: 'ad_account_request_created',
+            title: 'New Ad Account Request',
+            message: "{$user->name} submitted ad account request {$data->request_id}.",
+            meta: [
+                'ad_account_request_id' => $data->id,
+                'request_id' => $data->request_id,
+                'client_id' => $user->id,
+                'client_name' => $user->name,
+                'status' => $data->status,
+            ]
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Ad account request submitted.',

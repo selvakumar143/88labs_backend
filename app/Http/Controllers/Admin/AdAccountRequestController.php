@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdAccountRequest;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
@@ -72,12 +73,27 @@ class AdAccountRequestController extends Controller
         ]);
 
         $requestData = AdAccountRequest::findOrFail($id);
+        $previousStatus = $requestData->status;
 
         $requestData->update([
             'status' => $validated['status'],
             'approved_by' => Auth::id(),
             'approved_at' => now(),
         ]);
+
+        if ($previousStatus !== $validated['status']) {
+            NotificationDispatcher::notifyClient(
+                client: $requestData->client,
+                eventType: 'ad_account_request_status_updated',
+                title: 'Ad Account Request Updated',
+                message: "Your ad account request {$requestData->request_id} is {$validated['status']}.",
+                meta: [
+                    'ad_account_request_id' => $requestData->id,
+                    'request_id' => $requestData->request_id,
+                    'status' => $validated['status'],
+                ]
+            );
+        }
 
         $updatedRequest = $requestData->fresh([
             'client.client',

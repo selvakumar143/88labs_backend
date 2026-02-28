@@ -372,6 +372,8 @@ curl --request PUT 'http://localhost:8000/api/admin/ad-account-requests/1' \
 ## Wallet Topup APIs
 
 Note: `total_amount` in responses is derived from transaction `amount`.
+Note: Wallet balance endpoints (`/api/client/wallet-summary` and `/api/client/dashboard/wallet`) now return net balance per currency:
+- `approved wallet topups` minus `approved ad top requests` for the same client and currency.
 
 ### 1) Client: Create Wallet Topup Request
 
@@ -472,6 +474,99 @@ curl --request PUT 'http://localhost:8000/api/admin/wallet-topups/1' \
   --data '{
     "status":"rejected"
   }'
+```
+
+## Top Request APIs
+
+### 1) Client: Create Top Request
+
+`POST /api/top-requests`
+
+Required fields:
+- `ad_account_request_id` (must belong to logged-in customer)
+- `amount` (numeric, min `0.01`)
+- `currency` (string, max `10`)
+
+`status` is auto-set to `pending`.
+
+```bash
+curl --request POST 'http://localhost:8000/api/top-requests' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "ad_account_request_id": 1,
+    "amount":"500.00",
+    "currency":"USD"
+  }'
+```
+
+### 2) Client: List Own Top Requests
+
+`GET /api/my-top-requests`
+
+Optional query params:
+- `status` = `pending|approved|all`
+- `ad_account_request_id` = specific ad account request id (or `all`)
+- `per_page` = items per page (default `10`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/my-top-requests' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+Filter by status:
+
+```bash
+curl --request GET 'http://localhost:8000/api/my-top-requests?status=pending&ad_account_request_id=1&per_page=20' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+### 3) Admin: List All Top Requests
+
+`GET /api/admin/top-requests`
+
+Optional query params:
+- `status` = `pending|approved|all`
+- `client_id` = specific client user id (or `all`)
+- `ad_account_request_id` = specific ad account request id (or `all`)
+- `search` = amount / currency / client name / client email / ad account request id / business name / platform
+- `per_page` = items per page (default `10`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/top-requests?status=pending&client_id=5&ad_account_request_id=1&search=USD&per_page=20' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Admin: Update Top Request Status
+
+`PUT /api/admin/top-requests/1`
+
+Allowed values:
+- `pending`
+- `approved`
+
+```bash
+curl --request PUT 'http://localhost:8000/api/admin/top-requests/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "status":"approved"
+  }'
+```
+
+### 5) Admin: Delete Top Request
+
+`DELETE /api/admin/top-requests/1`
+
+```bash
+curl --request DELETE 'http://localhost:8000/api/admin/top-requests/1' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
 ```
 
 ## Run Laravel In Background (Keep Running After Terminal Close)
