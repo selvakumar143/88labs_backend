@@ -13,6 +13,8 @@ class AccountManagement extends Model
         'business_manager_id',
         'name',
         'account_id',
+        'card_type',
+        'card_number',
         'platform',
         'currency',
         'account_created_at',
