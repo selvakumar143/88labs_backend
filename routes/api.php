@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ForexRateController;
+use App\Http\Controllers\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +38,9 @@ Route::post('/admin/login', [AdminAuthController::class, 'login']);
 */
 
 Route::middleware(['auth:sanctum'])->group(function () {
+
+    // Common (Client + Admin)
+    Route::get('/forex-rates', [ForexRateController::class, 'latest']);
 
     /*
     |--------------------------------------------------------------------------
@@ -69,6 +74,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/client/notifications/all', [NotificationController::class, 'all']);
         Route::put('/client/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/client/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+        // Services
+        Route::post('/services/get', [ServiceController::class, 'getServices']);
+        Route::post('/services/update', [ServiceController::class, 'updateService']);
     });
 
     /*
@@ -120,6 +129,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/admin/notifications/all', [NotificationController::class, 'all']);
         Route::put('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+        // Export pdf 
+        Route::get('/admin/export-topup', [FinancialExportController::class, 'exportTopup']);
     });
 
     /*
