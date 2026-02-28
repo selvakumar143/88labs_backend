@@ -12,4 +12,9 @@ class BusinessManager extends Model
         'contact',
         'status',
     ];
+
+    public function clients()
+    {
+        return $this->hasMany(Client::class);
+    }
 }

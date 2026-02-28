@@ -10,9 +10,9 @@ class AccountManagement extends Model
 
     protected $fillable = [
         'client_id',
+        'business_manager_id',
         'name',
         'account_id',
-        'client_name',
         'platform',
         'currency',
         'account_created_at',
@@ -22,5 +22,10 @@ class AccountManagement extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function businessManager()
+    {
+        return $this->belongsTo(BusinessManager::class);
     }
 }
