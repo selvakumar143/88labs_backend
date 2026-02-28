@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'forex' => [
+        'base_url' => env('FOREX_API_BASE_URL', 'https://api.forexrateapi.com/v1/latest'),
+        'api_key' => env('FOREX_API_KEY'),
+        'base' => env('FOREX_BASE', 'USDT'),
+        'currencies' => env('FOREX_CURRENCIES', 'USD,EUR'),
+        'cache_key' => env('FOREX_CACHE_KEY', 'forex.latest'),
+        'cache_ttl_seconds' => (int) env('FOREX_CACHE_TTL_SECONDS', 3900),
+        'http_timeout' => (int) env('FOREX_HTTP_TIMEOUT', 15),
+    ],
+
 ];
