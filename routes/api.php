@@ -51,7 +51,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['role:customer|Customer,sanctum'])->group(function () {
 
         // Ad Account
-        Route::post('/ad-account-request', [ClientAdController::class, 'store']);
+        Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);
         Route::get('/client/ad-account-requests', [ClientAdController::class, 'index']);
         Route::get('/my-ad-account-requests', [ClientAdController::class, 'myRequests']);
 
