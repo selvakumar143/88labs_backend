@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Admin\FinancialExportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -120,6 +121,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/admin/notifications/all', [NotificationController::class, 'all']);
         Route::put('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+        // Export pdf 
+        Route::get('/admin/export-topup', [FinancialExportController::class, 'exportTopup']);
     });
 
     /*
