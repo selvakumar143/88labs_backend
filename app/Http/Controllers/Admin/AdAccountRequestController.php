@@ -8,6 +8,7 @@ use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AdAccountRequestController extends Controller
 {
@@ -17,6 +18,8 @@ class AdAccountRequestController extends Controller
             'client.client',
             'clientProfileByUserId',
             'clientProfileByClientId',
+            'businessManager',
+            'accountManagement.businessManager',
         ]);
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -54,6 +57,11 @@ class AdAccountRequestController extends Controller
                 ?? optional($item->clientProfileByClientId)->clientName
                 ?? optional(optional($item->client)->client)->clientName
                 ?? optional($item->client)->name;
+            $account = $item->accountManagement;
+            $item->account_id = optional($account)->account_id;
+            $item->account_name = optional($account)->name;
+            $item->business_manager_name = optional($item->businessManager)->name
+                ?? optional(optional($account)->businessManager)->name;
             return $item;
         });
 
@@ -69,17 +77,32 @@ class AdAccountRequestController extends Controller
             'status' => ['required', Rule::in([
                 AdAccountRequest::STATUS_APPROVED,
                 AdAccountRequest::STATUS_REJECTED,
+                AdAccountRequest::STATUS_PENDING,
             ])],
+            'business_manager_id' => ['sometimes', 'nullable', 'exists:business_managers,id'],
+            'account_management_id' => ['sometimes', 'nullable', 'exists:account_management,id'],
         ]);
 
         $requestData = AdAccountRequest::findOrFail($id);
         $previousStatus = $requestData->status;
 
-        $requestData->update([
-            'status' => $validated['status'],
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($validated, $requestData) {
+            $updateData = [
+                'status' => $validated['status'],
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ];
+
+            if (array_key_exists('business_manager_id', $validated)) {
+                $updateData['business_manager_id'] = $validated['business_manager_id'];
+            }
+
+            if (array_key_exists('account_management_id', $validated)) {
+                $updateData['account_management_id'] = $validated['account_management_id'];
+            }
+
+            $requestData->update($updateData);
+        });
 
         if ($previousStatus !== $validated['status']) {
             NotificationDispatcher::notifyClient(
@@ -99,11 +122,18 @@ class AdAccountRequestController extends Controller
             'client.client',
             'clientProfileByUserId',
             'clientProfileByClientId',
+            'businessManager',
+            'accountManagement.businessManager',
         ]);
         $updatedRequest->client_name = optional($updatedRequest->clientProfileByUserId)->clientName
             ?? optional($updatedRequest->clientProfileByClientId)->clientName
             ?? optional(optional($updatedRequest->client)->client)->clientName
             ?? optional($updatedRequest->client)->name;
+        $account = $updatedRequest->accountManagement;
+        $updatedRequest->account_id = optional($account)->account_id;
+        $updatedRequest->account_name = optional($account)->name;
+        $updatedRequest->business_manager_name = optional($updatedRequest->businessManager)->name
+            ?? optional(optional($account)->businessManager)->name;
 
         return response()->json([
             'status' => 'success',

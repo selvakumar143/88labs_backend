@@ -9,7 +9,6 @@ class AccountManagement extends Model
     protected $table = 'account_management';
 
     protected $fillable = [
-        'client_id',
         'business_manager_id',
         'name',
         'account_id',
@@ -20,11 +19,6 @@ class AccountManagement extends Model
         'account_created_at',
         'status',
     ];
-
-    public function client()
-    {
-        return $this->belongsTo(Client::class);
-    }
 
     public function businessManager()
     {

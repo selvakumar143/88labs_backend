@@ -114,6 +114,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
         Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
+        Route::put('/admin/account-management/{id}', [AdminAccountMgmt::class, 'update']);
 
         // Business Managers
         Route::get('/admin/business-managers', [AdminBusinessManager::class, 'index']);

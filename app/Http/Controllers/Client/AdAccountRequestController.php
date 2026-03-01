@@ -18,7 +18,8 @@ class AdAccountRequestController extends Controller
             'timezone' => 'required|string',
             'country' => 'required|string',
             'currency' => 'required|string',
-            'business_manager_id' => 'required|string',
+            'business_manager_id' => 'nullable|exists:business_managers,id',
+            'account_management_id' => 'nullable|exists:account_management,id',
             'website_url' => 'required|string',
             'account_type' => 'required|string',
             'personal_profile' => 'required|string',
@@ -38,6 +39,7 @@ class AdAccountRequestController extends Controller
             'market_country' => $request->country,
             'currency' => $request->currency,
             'business_manager_id' => $request->business_manager_id,
+            'account_management_id' => $request->account_management_id,
             'website_url' => $request->website_url,
             'account_type' => $request->account_type,
             'personal_profile' => $request->personal_profile,
@@ -68,7 +70,11 @@ class AdAccountRequestController extends Controller
 
     public function index()
     {
-        $query = AdAccountRequest::where('client_id', Auth::id());
+        $query = AdAccountRequest::with([
+                'businessManager',
+                'accountManagement.businessManager',
+            ])
+            ->where('client_id', Auth::id());
 
         if (request()->filled('status') && request()->status !== 'all') {
             $query->where('status', request()->status);
@@ -86,6 +92,14 @@ class AdAccountRequestController extends Controller
         }
 
         $requests = $query->latest()->paginate(request()->integer('per_page', 10));
+        $requests->getCollection()->transform(function ($item) {
+            $account = $item->accountManagement;
+            $item->account_id = optional($account)->account_id;
+            $item->account_name = optional($account)->name;
+            $item->business_manager_name = optional($item->businessManager)->name
+                ?? optional(optional($account)->businessManager)->name;
+            return $item;
+        });
 
         return response()->json([
             'status' => 'success',

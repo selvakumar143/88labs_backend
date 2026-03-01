@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AccountManagement;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AccountManagementController extends Controller
 {
@@ -14,7 +15,7 @@ class AccountManagementController extends Controller
      */
     public function index(Request $request)
     {
-        $accounts = AccountManagement::with(['client', 'businessManager'])
+        $accounts = AccountManagement::with(['businessManager'])
             ->latest()
             ->paginate(10);
 
@@ -31,7 +32,6 @@ class AccountManagementController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'client_id' => 'required|exists:clients,id',
             'business_manager_id' => 'nullable|exists:business_managers,id',
             'name' => 'required|string|max:255',
             'account_id' => 'required|string|unique:account_management,account_id',
@@ -44,7 +44,6 @@ class AccountManagementController extends Controller
         ]);
 
         $account = AccountManagement::create([
-            'client_id' => $request->client_id,
             'business_manager_id' => $request->business_manager_id,
             'name' => $request->name,
             'account_id' => $request->account_id,
@@ -59,7 +58,40 @@ class AccountManagementController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Account created successfully.',
-            'data' => $account->load(['client', 'businessManager']),
+            'data' => $account->load(['businessManager']),
         ], 201);
+    }
+
+    /**
+     * Update account.
+     * PUT /api/admin/account-management/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $account = AccountManagement::findOrFail($id);
+
+        $validated = $request->validate([
+            'business_manager_id' => 'sometimes|nullable|exists:business_managers,id',
+            'name' => 'sometimes|string|max:255',
+            'account_id' => [
+                'sometimes',
+                'string',
+                Rule::unique('account_management', 'account_id')->ignore($account->id),
+            ],
+            'card_type' => 'sometimes|nullable|string|max:100',
+            'card_number' => 'sometimes|nullable|string|max:50',
+            'platform' => 'sometimes|string|max:255',
+            'currency' => 'sometimes|string|max:10',
+            'account_created_at' => 'sometimes|date',
+            'status' => 'sometimes|string|in:pending,active,inactive',
+        ]);
+
+        $account->update($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Account updated successfully.',
+            'data' => $account->fresh()->load(['businessManager']),
+        ]);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Client;
+use App\Models\BusinessManager;
 
 class AdAccountRequest extends Model
 {
@@ -17,6 +18,7 @@ class AdAccountRequest extends Model
         'market_country',
         'currency',
         'business_manager_id',
+        'account_management_id',
         'website_url',
         'account_type',
         'personal_profile',
@@ -49,5 +51,15 @@ class AdAccountRequest extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function businessManager()
+    {
+        return $this->belongsTo(BusinessManager::class, 'business_manager_id');
+    }
+
+    public function accountManagement()
+    {
+        return $this->belongsTo(AccountManagement::class, 'account_management_id');
     }
 }
