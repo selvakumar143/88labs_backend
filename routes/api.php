@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
@@ -110,6 +111,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/admin/top-requests', [AdminTopRequest::class, 'index']);
         Route::put('/admin/top-requests/{id}', [AdminTopRequest::class, 'update']);
         Route::delete('/admin/top-requests/{id}', [AdminTopRequest::class, 'destroy']);
+
+        // Transactions
+        Route::get('/admin/transactions', [AdminTransactionController::class, 'index']);
+        Route::get('/admin/transactions/export', [AdminTransactionController::class, 'export']);
 
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
