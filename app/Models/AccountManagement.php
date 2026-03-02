@@ -9,18 +9,19 @@ class AccountManagement extends Model
     protected $table = 'account_management';
 
     protected $fillable = [
-        'client_id',
+        'business_manager_id',
         'name',
         'account_id',
-        'client_name',
+        'card_type',
+        'card_number',
         'platform',
         'currency',
         'account_created_at',
         'status',
     ];
 
-    public function client()
+    public function businessManager()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(BusinessManager::class);
     }
 }

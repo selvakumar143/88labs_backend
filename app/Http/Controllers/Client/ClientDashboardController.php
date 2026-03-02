@@ -84,18 +84,9 @@ class ClientDashboardController extends Controller
     {
         $clientId = Auth::id();
         $year = (int) $request->input('year', now()->year);
-        
-        /*
-        |--------------------------------------------------------------------------
-        | BASE FILTERED QUERY (Approved Only)
-        |--------------------------------------------------------------------------
-        */
-    
+
         $walletBalances = $this->getWalletBalances($clientId);
-    
-        $usdBalance = $hasData ? (float) ($balances['USD'] ?? 0) : null;
-        $eurBalance = $hasData ? (float) ($balances['EUR'] ?? 0) : null;
-    
+
         /*
         |--------------------------------------------------------------------------
         | MONTHLY TOTAL AMOUNT (USD ONLY - BASED ON APPROVAL DATE)
@@ -120,89 +111,10 @@ class ClientDashboardController extends Controller
                 'total' => (float) ($monthlyRaw[$i] ?? 0),
             ];
         }
-        /*
-        |--------------------------------------------------------------------------
-        | 3️⃣ RECENT TOPUPS (Approved + Pending + Account Name)
-        |--------------------------------------------------------------------------
-        */
-    
-        $approvedTopupsTotal = $hasData
-            ? (float) (clone $baseQuery)->sum('amount')
-            : null;
-    
-        /*
-        |--------------------------------------------------------------------------
-        | 3️⃣ ACTIVE AD ACCOUNTS (FILTERED)
-        |--------------------------------------------------------------------------
-        */
 
-        $accountQuery = AdAccountRequest::where('ad_account_requests.client_id', $clientId)
-            ->where('ad_account_requests.status', 'approved');
-
-        // If date range is provided
-        if ($startDate && $endDate) {
-            $accountQuery->whereBetween('ad_account_requests.approved_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ]);
-        }
-        // Else if only year is provided
-        elseif ($year) {
-            $accountQuery->whereYear('ad_account_requests.approved_at', $year);
-        }
-
-        $activeAdAccounts = $accountQuery->count();
-        $activeAdAccounts = $activeAdAccounts > 0 ? $activeAdAccounts : null;
-    
-        /*
-        |--------------------------------------------------------------------------
-        | 4️⃣ MONTHLY USD CHART
-        |--------------------------------------------------------------------------
-        */
-    
-        $monthlyRaw = (clone $baseQuery)
-            ->where('currency', 'USD')
-            ->selectRaw('MONTH(approved_at) as month')
-            ->selectRaw('SUM(amount) as total')
-            ->groupBy(DB::raw('MONTH(approved_at)'))
-            ->pluck('total', 'month')
-            ->toArray();
-    
-        $monthlyData = [];
-    
-        for ($i = 1; $i <= 12; $i++) {
-            $monthlyData[] = [
-                'month' => Carbon::create()->month($i)->format('M'),
-                'total' => $hasData && isset($monthlyRaw[$i])
-                    ? (float) $monthlyRaw[$i]
-                    : null
-            ];
-        }
-    
-        /*
-        |--------------------------------------------------------------------------
-        | 5️⃣ RECENT TOPUPS (FILTERED)
-        |--------------------------------------------------------------------------
-        */
-    
-        $recentQuery = WalletTopup::where('wallet_topups.client_id', $clientId);
-
-        if ($startDate && $endDate) {
-            $recentQuery->whereBetween('wallet_topups.approved_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ]);
-        } elseif ($year) {
-            $recentQuery->whereYear('wallet_topups.approved_at', $year);
-        }
-        
-        $recentTopups = $recentQuery
-            ->leftJoin(
-                'ad_account_requests',
-                'wallet_topups.client_id',
-                '=',
-                'ad_account_requests.client_id'
-            )
+        $recentTopups = DB::table('wallet_topups')
+            ->leftJoin('ad_account_requests', 'wallet_topups.client_id', '=', 'ad_account_requests.client_id')
+            ->where('wallet_topups.client_id', $clientId)
             ->orderByDesc('wallet_topups.id')
             ->limit(5)
             ->select(
@@ -217,7 +129,7 @@ class ClientDashboardController extends Controller
             ->map(function ($item) {
                 return [
                     'txn_id'     => $item->request_id,
-                    'ad_account' => $item->business_name ?? null,
+                    'ad_account' => $item->business_name ?? '-',
                     'amount'     => (float) $item->amount,
                     'status'     => strtoupper($item->status),
                     'date'       => Carbon::parse(

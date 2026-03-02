@@ -14,7 +14,9 @@ use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
 use App\Http\Controllers\Client\TopRequestController as ClientTopRequest;
 use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
+use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
@@ -50,7 +52,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['role:customer|Customer,sanctum'])->group(function () {
 
         // Ad Account
-        Route::post('/ad-account-request', [ClientAdController::class, 'store']);
+        Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);
         Route::get('/client/ad-account-requests', [ClientAdController::class, 'index']);
         Route::get('/my-ad-account-requests', [ClientAdController::class, 'myRequests']);
 
@@ -110,9 +112,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/admin/top-requests/{id}', [AdminTopRequest::class, 'update']);
         Route::delete('/admin/top-requests/{id}', [AdminTopRequest::class, 'destroy']);
 
+        // Transactions
+        Route::get('/admin/transactions', [AdminTransactionController::class, 'index']);
+        Route::get('/admin/transactions/export', [AdminTransactionController::class, 'export']);
+
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
         Route::post('/admin/account-management', [AdminAccountMgmt::class, 'store']);
+        Route::put('/admin/account-management/{id}', [AdminAccountMgmt::class, 'update']);
+
+        // Business Managers
+        Route::get('/admin/business-managers', [AdminBusinessManager::class, 'index']);
+        Route::get('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'show']);
+        Route::post('/admin/business-managers', [AdminBusinessManager::class, 'store']);
+        Route::put('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'update']);
+        Route::delete('/admin/business-managers/{businessManager}', [AdminBusinessManager::class, 'destroy']);
 
         // Users
         Route::get('/users', [UserManagementController::class, 'index']);

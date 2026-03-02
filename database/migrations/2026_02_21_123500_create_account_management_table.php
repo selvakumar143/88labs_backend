@@ -12,7 +12,6 @@ return new class extends Migration {
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->string('name');
             $table->string('account_id')->unique();
-            $table->string('client_name');
             $table->string('platform');
             $table->string('currency');
             $table->dateTime('account_created_at');
