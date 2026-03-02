@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\TopRequest;
@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -175,11 +176,8 @@ class TransactionController extends Controller
 
     protected function walletTransactions(array $filters): Collection
     {
-        $query = WalletTopup::with(['client']);
-
-        if (!empty($filters['client_id']) && $filters['client_id'] !== 'all') {
-            $query->where('client_id', $filters['client_id']);
-        }
+        $query = WalletTopup::with(['client'])
+            ->where('client_id', Auth::id());
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -199,11 +197,7 @@ class TransactionController extends Controller
                 $q->where('request_id', 'like', "%{$search}%")
                     ->orWhere('transaction_hash', 'like', "%{$search}%")
                     ->orWhere('amount', 'like', "%{$search}%")
-                    ->orWhere('currency', 'like', "%{$search}%")
-                    ->orWhereHas('client', function ($sub) use ($search) {
-                        $sub->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
-                    });
+                    ->orWhere('currency', 'like', "%{$search}%");
             });
         }
 
@@ -239,11 +233,7 @@ class TransactionController extends Controller
             'adAccountRequest.businessManager:id,name',
             'adAccountRequest.accountManagement:id,account_id,name,business_manager_id',
             'adAccountRequest.accountManagement.businessManager:id,name',
-        ]);
-
-        if (!empty($filters['client_id']) && $filters['client_id'] !== 'all') {
-            $query->where('client_id', $filters['client_id']);
-        }
+        ])->where('client_id', Auth::id());
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -262,9 +252,6 @@ class TransactionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('amount', 'like', "%{$search}%")
                     ->orWhere('currency', 'like', "%{$search}%")
-                    ->orWhereHas('client', function ($sub) use ($search) {
-                        $sub->where('name', 'like', "%{$search}%");
-                    })
                     ->orWhereHas('adAccountRequest', function ($sub) use ($search) {
                         $sub->where('request_id', 'like', "%{$search}%")
                             ->orWhere('business_name', 'like', "%{$search}%");
@@ -306,11 +293,8 @@ class TransactionController extends Controller
             return collect();
         }
 
-        $query = DB::table('exchange_requests');
-
-        if (!empty($filters['client_id']) && $filters['client_id'] !== 'all') {
-            $query->where('client_id', $filters['client_id']);
-        }
+        $query = DB::table('exchange_requests')
+            ->where('client_id', Auth::id());
 
         if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('exchange_requests', 'status')) {
             $query->where('status', $filters['status']);

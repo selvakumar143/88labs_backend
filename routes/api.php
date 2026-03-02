@@ -13,10 +13,15 @@ use App\Http\Controllers\Client\WalletTopupController as ClientWallet;
 use App\Http\Controllers\Admin\WalletTopupController as AdminWallet;
 use App\Http\Controllers\Client\TopRequestController as ClientTopRequest;
 use App\Http\Controllers\Admin\TopRequestController as AdminTopRequest;
+use App\Http\Controllers\Client\ExchangeRequestController as ClientExchangeRequestController;
+use App\Http\Controllers\Admin\ExchangeRequestController as AdminExchangeRequestController;
+use App\Http\Controllers\Client\TransactionController as ClientTransactionController;
+use App\Http\Controllers\Client\TransactionInvoiceController as ClientTransactionInvoiceController;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Http\Controllers\Admin\TransactionInvoiceController as AdminTransactionInvoiceController;
 use App\Http\Controllers\Client\ClientDashboardController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\NotificationController;
@@ -65,6 +70,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/top-requests', [ClientTopRequest::class, 'store']);
         Route::get('/my-top-requests', [ClientTopRequest::class, 'myRequests']);
 
+        // Transactions
+        Route::get('/client/transactions', [ClientTransactionController::class, 'index']);
+        Route::get('/client/transactions/export', [ClientTransactionController::class, 'export']);
+        Route::get('/client/transactions/{type}/{id}/invoice', [ClientTransactionInvoiceController::class, 'show']);
+        Route::get('/client/transactions/{type}/{id}/invoice/download', [ClientTransactionInvoiceController::class, 'download']);
+
+        // Exchange Requests
+        Route::post('/client/exchange-requests', [ClientExchangeRequestController::class, 'store']);
+        Route::get('/client/exchange-requests', [ClientExchangeRequestController::class, 'index']);
+        Route::get('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'show']);
+        Route::put('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'update']);
+        Route::delete('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'destroy']);
+        Route::get('/my-exchange-requests', [ClientExchangeRequestController::class, 'myRequests']);
+
         // Dashboard
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
         Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
@@ -112,9 +131,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/admin/top-requests/{id}', [AdminTopRequest::class, 'update']);
         Route::delete('/admin/top-requests/{id}', [AdminTopRequest::class, 'destroy']);
 
+        // Exchange Requests
+        Route::get('/admin/exchange-requests', [AdminExchangeRequestController::class, 'index']);
+        Route::get('/admin/exchange-requests/{id}', [AdminExchangeRequestController::class, 'show']);
+        Route::post('/admin/exchange-requests', [AdminExchangeRequestController::class, 'store']);
+        Route::put('/admin/exchange-requests/{id}', [AdminExchangeRequestController::class, 'update']);
+        Route::put('/admin/exchange-requests/{id}/status', [AdminExchangeRequestController::class, 'updateStatus']);
+        Route::delete('/admin/exchange-requests/{id}', [AdminExchangeRequestController::class, 'destroy']);
+
         // Transactions
         Route::get('/admin/transactions', [AdminTransactionController::class, 'index']);
         Route::get('/admin/transactions/export', [AdminTransactionController::class, 'export']);
+        Route::get('/admin/transactions/{type}/{id}/invoice', [AdminTransactionInvoiceController::class, 'show']);
+        Route::get('/admin/transactions/{type}/{id}/invoice/download', [AdminTransactionInvoiceController::class, 'download']);
 
         // Account Management
         Route::get('/admin/account-management', [AdminAccountMgmt::class, 'index']);
@@ -144,8 +173,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/admin/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/admin/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
-        // Export pdf 
-        Route::get('/admin/export-topup', [FinancialExportController::class, 'exportTopup']);
+        // Legacy export alias (same implementation as transactions export)
+        Route::get('/admin/export-topup', [AdminTransactionController::class, 'export']);
     });
 
     /*
