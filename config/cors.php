@@ -28,20 +28,17 @@ return [
         explode(',', (string) env('CORS_ALLOWED_ORIGINS', '*'))
     ))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https?://localhost(:\d+)?$#',
+        '#^https?://127\.0\.0\.1(:\d+)?$#',
+    ],
 
     /*
     |--------------------------------------------------------------------------
     | Allowed / Exposed Headers
     |--------------------------------------------------------------------------
     */
-    'allowed_headers' => [
-        'Accept',
-        'Authorization',
-        'Content-Type',
-        'Origin',
-        'X-Requested-With',
-    ],
+    'allowed_headers' => ['*'],
 
     'exposed_headers' => [
         'Content-Disposition',
@@ -57,5 +54,5 @@ return [
     |
     | Keep false for bearer-token Authorization flows.
     */
-    'supports_credentials' => false,
+    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', true),
 ];
