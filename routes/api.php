@@ -36,8 +36,10 @@ use App\Http\Controllers\ServiceController;
 
 Route::post('/customer/register', [CustomerAuthController::class, 'register']);
 Route::post('/customer/login', [CustomerAuthController::class, 'login']);
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/customer/password', [CustomerAuthController::class, 'passwordHandler']); // ✅ Added
 
+Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/password', [AdminAuthController::class, 'passwordHandler']);
 /*
 |--------------------------------------------------------------------------
 | PROTECTED ROUTES (SANCTUM)
@@ -55,6 +57,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['role:customer|Customer,sanctum'])->group(function () {
+
+    Route::put('/customer/update-profile', [CustomerAuthController::class, 'updateProfile']);
 
         // Ad Account
         Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);
