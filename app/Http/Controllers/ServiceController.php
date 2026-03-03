@@ -16,7 +16,7 @@ class ServiceController extends Controller
             'client_id' => 'required|integer',
         ]);
 
-        $clientId = $request->query('client_id');
+        $clientId = (int) $request->input('client_id');
 
         // Default services structure
         $defaultServices = [
@@ -56,8 +56,10 @@ class ServiceController extends Controller
     {
         $request->validate([
             'client_id'   => 'required|integer',
-            'service_key' => 'required|string',
-            'status'      => 'required|boolean'
+            'service_key' => 'required_without:services|string',
+            'status'      => 'required_without:services|boolean',
+            'services'    => 'nullable|array',
+            'services.*'  => 'boolean',
         ]);
 
         $clientId   = $request->client_id;
@@ -82,7 +84,12 @@ class ServiceController extends Controller
 
         $services = $record->services ?? $defaultServices;
 
-        $services[$serviceKey] = $status;
+        if ($request->filled('services')) {
+            $incomingServices = $request->input('services', []);
+            $services = array_merge($services, $incomingServices);
+        } else {
+            $services[$serviceKey] = $status;
+        }
 
         $record->update([
             'services' => $services
