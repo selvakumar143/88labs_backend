@@ -14,20 +14,38 @@ class ServiceController extends Controller
     {
         $request->validate([
             'client_id' => 'required|integer',
-            'services' => 'required|array',
         ]);
 
-        $clientId = $request->client_id;
-        $services = $request->services;
+        $clientId = $request->query('client_id');
 
-        $record = ClientService::updateOrCreate(
-            ['client_id' => $clientId],
-            ['services' => $services]
-        );
+        // Default services structure
+        $defaultServices = [
+            'Unbanning Ad Accounts' => false,
+            'Unbanning Fan Pages' => false,
+            'Unban Business Manager' => false,
+            'Purchase Verified Profiles' => false,
+            'Meta Competitor Spying' => false,
+            'Shopify Spying' => false,
+            'Trustpilot Removal' => false,
+        ];
+
+        $record = ClientService::where('client_id', $clientId)->first();
+
+        if (!$record) {
+            return response()->json([
+                'client_id' => $clientId,
+                'services' => $defaultServices
+            ]);
+        }
+
+        // Merge DB values over defaults
+        $storedServices = $record->services ?? [];
+
+        $mergedServices = array_merge($defaultServices, $storedServices);
 
         return response()->json([
             'client_id' => $clientId,
-            'services' => $record->services
+            'services' => $mergedServices
         ]);
     }
 
@@ -46,15 +64,23 @@ class ServiceController extends Controller
         $serviceKey = $request->service_key;
         $status     = $request->status;
 
-        $record = ClientService::where('client_id', $clientId)->first();
+        // Default services
+        $defaultServices = [
+            'Unbanning Ad Accounts' => false,
+            'Unbanning Fan Pages' => false,
+            'Unban Business Manager' => false,
+            'Purchase Verified Profiles' => false,
+            'Meta Competitor Spying' => false,
+            'Shopify Spying' => false,
+            'Trustpilot Removal' => false,
+        ];
 
-        if (!$record) {
-            return response()->json([
-                'error' => 'Services not initialized for this client.'
-            ], 400);
-        }
+        $record = ClientService::firstOrCreate(
+            ['client_id' => $clientId],
+            ['services' => $defaultServices]
+        );
 
-        $services = $record->services ?? [];
+        $services = $record->services ?? $defaultServices;
 
         $services[$serviceKey] = $status;
 
