@@ -97,7 +97,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/client/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
         // Services
-        Route::post('/services/get', [ServiceController::class, 'getServices']);
+        Route::get('/services/get', [ServiceController::class, 'getServices']);
         Route::post('/services/update', [ServiceController::class, 'updateService']);
     });
 

@@ -68,6 +68,12 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 https://sel:_NsLeKRt84PkAPSmJ1w1QJAw9ykQs0P2p9gxr@github.com/selvakumar143/88labs_backend.git
 
+## API Docs Index
+
+- Client APIs: `docs/client-api.md`
+- Admin APIs: `docs/admin-api.md`
+- Notifications API: `docs/notifications-api.md`
+
 ## Create User API
 
 ### Endpoint
