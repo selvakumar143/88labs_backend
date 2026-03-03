@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ExchangeRequest;
 use App\Models\TopRequest;
 use App\Models\WalletTopup;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class TransactionInvoiceController extends Controller
@@ -23,17 +22,80 @@ class TransactionInvoiceController extends Controller
 
     public function download(Request $request, string $type, int $id)
     {
-        [$normalizedType, $invoice] = $this->buildInvoice($type, $id);
-        $view = $this->resolveTemplate($normalizedType);
+        $validated = $request->validate([
+            'format' => 'nullable|in:csv,excel',
+        ]);
 
-        $pdf = Pdf::loadView($view, [
-            'invoice' => $invoice,
-        ])->setPaper('a4');
+        [$normalizedType, $invoice] = $this->buildInvoice($type, $id);
+        $format = $validated['format'] ?? 'csv';
+        $rows = $this->invoiceExportRows($invoice);
 
         $safeReference = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($invoice['reference'] ?? $id));
-        $fileName = 'invoice_' . $normalizedType . '_' . $safeReference . '.pdf';
+        $fileBase = 'invoice_' . $normalizedType . '_' . $safeReference;
 
-        return $pdf->download($fileName);
+        if ($format === 'excel') {
+            return response($this->buildInvoiceExcelHtml($rows), 200, [
+                'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $fileBase . '.xls"',
+            ]);
+        }
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['section', 'field', 'value']);
+
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+
+            fclose($handle);
+        }, $fileBase . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    private function invoiceExportRows(array $invoice): array
+    {
+        $rows = [];
+
+        foreach ($invoice as $key => $value) {
+            if (in_array($key, ['client', 'details', 'line_items'], true)) {
+                continue;
+            }
+
+            $rows[] = ['summary', (string) $key, is_scalar($value) || $value === null ? (string) $value : json_encode($value)];
+        }
+
+        foreach ((array) data_get($invoice, 'client', []) as $key => $value) {
+            $rows[] = ['client', (string) $key, is_scalar($value) || $value === null ? (string) $value : json_encode($value)];
+        }
+
+        foreach ((array) data_get($invoice, 'details', []) as $key => $value) {
+            $rows[] = ['details', (string) $key, is_scalar($value) || $value === null ? (string) $value : json_encode($value)];
+        }
+
+        foreach ((array) data_get($invoice, 'line_items', []) as $index => $lineItem) {
+            foreach ((array) $lineItem as $key => $value) {
+                $rows[] = ['line_item_' . ($index + 1), (string) $key, is_scalar($value) || $value === null ? (string) $value : json_encode($value)];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function buildInvoiceExcelHtml(array $rows): string
+    {
+        $html = '<table border="1" cellspacing="0" cellpadding="6"><thead><tr><th>Section</th><th>Field</th><th>Value</th></tr></thead><tbody>';
+
+        foreach ($rows as $row) {
+            $html .= '<tr>'
+                . '<td>' . e((string) ($row[0] ?? '')) . '</td>'
+                . '<td>' . e((string) ($row[1] ?? '')) . '</td>'
+                . '<td>' . e((string) ($row[2] ?? '')) . '</td>'
+                . '</tr>';
+        }
+
+        return $html . '</tbody></table>';
     }
 
     private function resolveTemplate(string $type): string
