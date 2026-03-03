@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\TopRequest;
 use App\Models\User;
 use App\Models\WalletTopup;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -63,7 +62,7 @@ class TransactionController extends Controller
             'search' => 'nullable|string',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
-            'format' => 'nullable|in:csv,pdf',
+            'format' => 'nullable|in:csv,excel',
         ]);
 
         $format = $validated['format'] ?? 'csv';
@@ -77,10 +76,14 @@ class TransactionController extends Controller
             ], 404);
         }
 
-        if ($format === 'pdf') {
+        $fileBase = 'transactions_' . now()->format('Ymd_His');
+
+        if ($format === 'excel') {
             $html = $this->buildExportHtml($transactions);
-            $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-            return $pdf->download('transactions_' . now()->format('Ymd_His') . '.pdf');
+            return response($html, 200, [
+                'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $fileBase . '.xls"',
+            ]);
         }
 
         $headers = [
@@ -128,7 +131,7 @@ class TransactionController extends Controller
             }
 
             fclose($handle);
-        }, 'transactions_' . now()->format('Ymd_His') . '.csv', [
+        }, $fileBase . '.csv', [
             'Content-Type' => 'text/csv',
         ]);
     }

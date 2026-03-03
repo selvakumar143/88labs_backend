@@ -16,7 +16,7 @@ class FinancialExportController extends Controller
             'search' => 'nullable|string',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
-            'format' => 'nullable|in:csv,pdf',
+            'format' => 'nullable|in:csv,excel',
         ]);
 
         $typeMap = [
