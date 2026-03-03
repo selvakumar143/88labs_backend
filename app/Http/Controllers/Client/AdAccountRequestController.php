@@ -12,6 +12,15 @@ class AdAccountRequestController extends Controller
 {
     public function store(Request $request)
     {
+        $request->merge([
+            'business_name' => $request->input('business_name', $request->input('company_name')),
+            'platform' => $request->input('platform', $request->input('ad_platform')),
+            'website_url' => $request->input('website_url', $request->input('company_website_url')),
+            'personal_profile' => $request->input('personal_profile', $request->input('personal_facebook_profile_link')),
+            'number_of_accounts' => $request->input('number_of_accounts', $request->input('number_of_ad_accounts')),
+            'notes' => $request->input('notes', $request->input('note')),
+        ]);
+
         $request->validate([
             'business_name' => 'required|string|max:255',
             'platform' => 'required|string',

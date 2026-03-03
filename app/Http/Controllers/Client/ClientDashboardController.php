@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\WalletTopup;
 use App\Models\AdAccountRequest;
@@ -47,16 +48,81 @@ class ClientDashboardController extends Controller
             ->groupBy(DB::raw('UPPER(currency)'))
             ->pluck('total', 'currency');
 
+        $exchangeOutByCurrency = collect();
+        $exchangeInByCurrency = collect();
+
+        if (Schema::hasTable('exchange_requests')) {
+            $exchangeQuery = DB::table('exchange_requests')
+                ->where('client_id', $clientId);
+
+            if (Schema::hasColumn('exchange_requests', 'status')) {
+                $exchangeQuery->whereRaw('LOWER(status) = ?', ['approved']);
+            }
+
+            $exchangeDateColumn = null;
+            foreach (['approved_at', 'updated_at', 'created_at'] as $candidate) {
+                if (Schema::hasColumn('exchange_requests', $candidate)) {
+                    $exchangeDateColumn = $candidate;
+                    break;
+                }
+            }
+
+            if ($exchangeDateColumn && $startDate) {
+                $exchangeQuery->whereDate($exchangeDateColumn, '>=', Carbon::parse($startDate));
+            }
+
+            if ($exchangeDateColumn && $endDate) {
+                $exchangeQuery->whereDate($exchangeDateColumn, '<=', Carbon::parse($endDate));
+            }
+
+            $baseCurrencyColumn = Schema::hasColumn('exchange_requests', 'base_currency')
+                ? 'base_currency'
+                : (Schema::hasColumn('exchange_requests', 'based_cur') ? 'based_cur' : null);
+
+            $conversionCurrencyColumn = Schema::hasColumn('exchange_requests', 'converion_currency')
+                ? 'converion_currency'
+                : (Schema::hasColumn('exchange_requests', 'convertion_cur') ? 'convertion_cur' : null);
+
+            if (Schema::hasColumn('exchange_requests', 'total_deduction')) {
+                $exchangeDeductionExpression = 'COALESCE(total_deduction, request_amount + COALESCE(service_fee, 0))';
+            } else {
+                $exchangeDeductionExpression = 'request_amount + COALESCE(service_fee, 0)';
+            }
+
+            $exchangeReturnExpression = Schema::hasColumn('exchange_requests', 'return_amount')
+                ? 'return_amount'
+                : (Schema::hasColumn('exchange_requests', 'final_amount') ? 'final_amount' : null);
+
+            if ($baseCurrencyColumn) {
+                $exchangeOutByCurrency = (clone $exchangeQuery)
+                    ->selectRaw("UPPER({$baseCurrencyColumn}) as currency, SUM({$exchangeDeductionExpression}) as total")
+                    ->groupBy(DB::raw("UPPER({$baseCurrencyColumn})"))
+                    ->pluck('total', 'currency');
+            }
+
+            if ($conversionCurrencyColumn && $exchangeReturnExpression) {
+                $exchangeInByCurrency = (clone $exchangeQuery)
+                    ->selectRaw("UPPER({$conversionCurrencyColumn}) as currency, SUM({$exchangeReturnExpression}) as total")
+                    ->groupBy(DB::raw("UPPER({$conversionCurrencyColumn})"))
+                    ->pluck('total', 'currency');
+            }
+        }
+
         $currencyTotals = [];
         $allCurrencies = collect($walletTopupsByCurrency->keys())
             ->merge($adTopupsByCurrency->keys())
+            ->merge($exchangeOutByCurrency->keys())
+            ->merge($exchangeInByCurrency->keys())
             ->unique()
             ->values();
 
         foreach ($allCurrencies as $currency) {
-            $credited = (float) ($walletTopupsByCurrency[$currency] ?? 0);
-            $deducted = (float) ($adTopupsByCurrency[$currency] ?? 0);
-            $currencyTotals[$currency] = $credited - $deducted;
+            $walletTopupCredit = (float) ($walletTopupsByCurrency[$currency] ?? 0);
+            $exchangeCredit = (float) ($exchangeInByCurrency[$currency] ?? 0);
+            $accountTopupDeduction = (float) ($adTopupsByCurrency[$currency] ?? 0);
+            $exchangeDeduction = (float) ($exchangeOutByCurrency[$currency] ?? 0);
+
+            $currencyTotals[$currency] = ($walletTopupCredit + $exchangeCredit) - ($accountTopupDeduction + $exchangeDeduction);
         }
 
         return [
