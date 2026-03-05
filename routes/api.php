@@ -110,6 +110,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     | ADMIN ROUTES
     |--------------------------------------------------------------------------
     */
+    
+    // PUBLIC
+    Route::post('/client/set-password', [ClientAuthController::class, 'setPassword']);
+
+
     Route::middleware(['role:admin|Admin,sanctum'])->group(function () {
 
         // Users
