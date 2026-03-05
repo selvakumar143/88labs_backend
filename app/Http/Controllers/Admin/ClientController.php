@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 
 class ClientController extends Controller
 {
@@ -45,7 +46,6 @@ class ClientController extends Controller
             'clientCode' => 'nullable|string|max:255|unique:clients,clientCode',
             'clientName' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
             'country' => 'required',
             'phone' => 'required',
         ]);
@@ -54,17 +54,16 @@ class ClientController extends Controller
 
         try {
 
-            // 1. Create user (auto id)
+            // create user WITHOUT password
             $user = User::create([
                 'name' => $request->clientName,
                 'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'email_verified_at' => now(),
+                'password' => null,
+                'email_verified_at' => null,
             ]);
 
             $user->assignRole('customer');
 
-            // 2. Create client linked to that user
             $client = Client::create([
                 'clientCode' => $request->clientCode,
                 'clientName' => $request->clientName,
@@ -80,8 +79,8 @@ class ClientController extends Controller
                 'cooperationStart' => $request->cooperationStart,
                 'serviceFeePercent' => $request->serviceFeePercent,
                 'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
-                'enabled' => true, // default
-                'user_id' => $user->id, // AUTO GENERATED ID
+                'enabled' => false,
+                'user_id' => $user->id,
             ]);
 
             if (blank($client->clientCode)) {
@@ -89,21 +88,27 @@ class ClientController extends Controller
                 $client->save();
             }
 
+            // Send password setup email
+            Password::sendResetLink([
+                'email' => $user->email
+            ]);
+
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Client created successfully',
-                'data' => $client->load('user'),
+                'message' => 'Client created. Password setup email sent.',
+                'data' => $client->load('user')
             ], 201);
 
         } catch (\Exception $e) {
 
             DB::rollBack();
+
             return response()->json([
                 'status' => 'error',
-                'message' => 'Something went wrong.',
-                'error' => $e->getMessage(),
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -210,6 +215,44 @@ class ClientController extends Controller
         }
     }
 
+    public function setPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|confirmed|min:6',
+        ]);
+ 
+        $status = Password::reset(
+            $request->only(
+                'email', 'password', 'password_confirmation', 'token'
+            ),
+            function ($user, $password) {
+
+                $user->password = Hash::make($password);
+                $user->email_verified_at = now();
+                $user->save();
+
+                // activate client
+                $user->client->update([
+                    'enabled' => true
+                ]);
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Password set successfully. Account activated.'
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Invalid or expired token'
+        ], 400);
+    }
     public function destroy(Client $client)
     {
         DB::beginTransaction();
