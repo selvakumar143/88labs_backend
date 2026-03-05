@@ -158,6 +158,14 @@ class CustomerAuthController extends Controller
                 'email' => 'required|email|exists:users,email',
             ]);
 
+            $user = User::where('email', $request->email)->first();
+            if (!$user || !$user->hasAnyRole(['customer', 'Customer'])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized. Not a Customer.',
+                ], 403);
+            }
+
             $status = Password::sendResetLink(
                 $request->only('email')
             );

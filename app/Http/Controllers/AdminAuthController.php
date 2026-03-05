@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Auth\Events\PasswordReset;
+use App\Models\User;
 
 class AdminAuthController extends Controller
 {
@@ -88,6 +89,14 @@ public function passwordHandler(Request $request)
         $request->validate([
             'email' => 'required|email|exists:users,email',
         ]);
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user || !$user->hasAnyRole(['admin', 'Admin'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized. Not an Admin.',
+            ], 403);
+        }
 
         $status = Password::sendResetLink(
             $request->only('email')

@@ -21,7 +21,7 @@ class SetPasswordNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $url = route('password.reset', [
+        $url = route('password.setup', [
             'token' => $this->token,
             'email' => $notifiable->getEmailForPasswordReset(),
         ]);

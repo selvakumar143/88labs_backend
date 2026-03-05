@@ -28,15 +28,25 @@ Route::post('/login', [ClientDashboardController::class, 'login']);
 Route::post('/logout', [ClientDashboardController::class, 'logout'])
     ->name('client.logout');
 
-/*
-|--------------------------------------------------------------------------
-| PASSWORD RESET LINK LANDING
-|--------------------------------------------------------------------------
-*/
 Route::get('/set-password/{token}', function (string $token) {
     return view('auth.set-password', [
         'token' => $token,
         'email' => request()->query('email', ''),
+        'formTitle' => 'Set Your Password',
+        'formSubtitle' => 'Enter a new password and confirm it to activate your account.',
+        'submitEndpoint' => '/api/client/set-password',
+        'redirectUrl' => 'https://88labs.netlify.app/login',
+    ]);
+})->name('password.setup');
+
+Route::get('/reset-password/{token}', function (string $token) {
+    return view('auth.set-password', [
+        'token' => $token,
+        'email' => request()->query('email', ''),
+        'formTitle' => 'Reset Your Password',
+        'formSubtitle' => 'Enter a new password and confirm it to continue.',
+        'submitEndpoint' => '/api/password/reset',
+        'redirectUrl' => 'https://88labs.netlify.app/login',
     ]);
 })->name('password.reset');
 

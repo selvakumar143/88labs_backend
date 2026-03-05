@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\User;
+use App\Notifications\SetPasswordNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
@@ -88,10 +89,9 @@ class ClientController extends Controller
                 $client->save();
             }
 
-            // Send password setup email
-            Password::sendResetLink([
-                'email' => $user->email
-            ]);
+            // Send invite "set password" email with a password broker token
+            $token = Password::broker()->createToken($user);
+            $user->notify(new SetPasswordNotification($token));
 
             DB::commit();
 
