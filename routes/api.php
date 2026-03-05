@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\CustomerAuthController;
+use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\Api\UserController;
 
 use App\Http\Controllers\Client\AdAccountRequestController as ClientAdController;
@@ -38,6 +39,7 @@ Route::post('/customer/register', [CustomerAuthController::class, 'register']);
 Route::post('/customer/login', [CustomerAuthController::class, 'login']);
 Route::post('/customer/password', [CustomerAuthController::class, 'passwordHandler']); // ✅ Added
 Route::post('/client/set-password', [ClientController::class, 'setPassword']);
+Route::post('/password/reset', [PasswordController::class, 'resetFromLink']);
 
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 Route::post('/admin/password', [AdminAuthController::class, 'passwordHandler']);

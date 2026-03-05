@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Set Password</title>
+    <title>{{ $formTitle ?? 'Set Password' }}</title>
     <style>
         body {
             margin: 0;
@@ -102,8 +102,8 @@
 <body>
     <div class="wrap">
         <div class="card">
-            <h1>Set Your Password</h1>
-            <p>Enter a new password and confirm it to activate your account.</p>
+            <h1>{{ $formTitle ?? 'Set Your Password' }}</h1>
+            <p>{{ $formSubtitle ?? 'Enter a new password and confirm it to continue.' }}</p>
 
             <form id="setPasswordForm">
                 <label for="email">Email</label>
@@ -131,7 +131,8 @@
         const token = @json($token);
         const form = document.getElementById('setPasswordForm');
         const msg = document.getElementById('message');
-        const redirectUrl = 'https://88labs.netlify.app/login';
+        const redirectUrl = @json($redirectUrl ?? 'https://88labs.netlify.app/login');
+        const submitEndpoint = @json($submitEndpoint ?? '/api/client/set-password');
 
         document.querySelectorAll('.toggle-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -155,7 +156,7 @@
             };
 
             try {
-                const res = await fetch('/api/client/set-password', {
+                const res = await fetch(submitEndpoint, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
