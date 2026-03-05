@@ -28,11 +28,14 @@ class AdAccountRequestController extends Controller
             'country' => 'required|string',
             'currency' => 'required|string',
             'business_manager_id' => 'nullable|exists:business_managers,id',
-            'account_management_id' => 'nullable|exists:account_management,id',
             'website_url' => 'required|string',
             'account_type' => 'required|string',
             'personal_profile' => 'required|string',
             'number_of_accounts' => 'required|integer|min:1',
+            'account_name' => 'prohibited',
+            'account_id' => 'prohibited',
+            'card_type' => 'prohibited',
+            'card_number' => 'prohibited',
         ]);
         $user = Auth::user();
 
@@ -48,7 +51,6 @@ class AdAccountRequestController extends Controller
             'market_country' => $request->country,
             'currency' => $request->currency,
             'business_manager_id' => $request->business_manager_id,
-            'account_management_id' => $request->account_management_id,
             'website_url' => $request->website_url,
             'account_type' => $request->account_type,
             'personal_profile' => $request->personal_profile,
@@ -81,7 +83,6 @@ class AdAccountRequestController extends Controller
     {
         $query = AdAccountRequest::with([
                 'businessManager',
-                'accountManagement.businessManager',
             ])
             ->where('client_id', Auth::id());
 
@@ -102,11 +103,7 @@ class AdAccountRequestController extends Controller
 
         $requests = $query->latest()->paginate(request()->integer('per_page', 10));
         $requests->getCollection()->transform(function ($item) {
-            $account = $item->accountManagement;
-            $item->account_id = optional($account)->account_id;
-            $item->account_name = optional($account)->name;
-            $item->business_manager_name = optional($item->businessManager)->name
-                ?? optional(optional($account)->businessManager)->name;
+            $item->business_manager_name = optional($item->businessManager)->name;
             return $item;
         });
 

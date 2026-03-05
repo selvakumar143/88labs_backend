@@ -177,15 +177,12 @@ class TransactionInvoiceController extends Controller
     {
         $item = TopRequest::with([
             'client:id,name,email',
-            'adAccountRequest:id,request_id,business_name,business_manager_id,account_management_id',
+            'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-            'adAccountRequest.accountManagement:id,account_id,name,business_manager_id',
-            'adAccountRequest.accountManagement.businessManager:id,name',
         ])->where('client_id', Auth::id())->findOrFail($id);
 
         $amount = (float) $item->amount;
         $adAccount = $item->adAccountRequest;
-        $account = optional($adAccount)->accountManagement;
 
         return [
             'invoice_number' => 'INV-ACCOUNT-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
@@ -205,10 +202,9 @@ class TransactionInvoiceController extends Controller
             'details' => [
                 'ad_account_request_id' => optional($adAccount)->request_id,
                 'business_name' => optional($adAccount)->business_name,
-                'account_id' => optional($account)->account_id,
-                'account_name' => optional($account)->name,
-                'business_manager_name' => optional(optional($adAccount)->businessManager)->name
-                    ?? optional(optional($account)->businessManager)->name,
+                'account_id' => optional($adAccount)->account_id,
+                'account_name' => optional($adAccount)->account_name,
+                'business_manager_name' => optional(optional($adAccount)->businessManager)->name,
             ],
             'line_items' => [
                 [
