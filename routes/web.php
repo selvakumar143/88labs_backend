@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Client\ClientDashboardController;
-use App\Http\Controllers\Client\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +27,18 @@ Route::post('/login', [ClientDashboardController::class, 'login']);
 
 Route::post('/logout', [ClientDashboardController::class, 'logout'])
     ->name('client.logout');
+
+/*
+|--------------------------------------------------------------------------
+| PASSWORD RESET LINK LANDING
+|--------------------------------------------------------------------------
+*/
+Route::get('/set-password/{token}', function (string $token) {
+    return view('auth.set-password', [
+        'token' => $token,
+        'email' => request()->query('email', ''),
+    ]);
+})->name('password.reset');
 
 /*
 |--------------------------------------------------------------------------
