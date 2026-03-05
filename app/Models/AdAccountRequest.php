@@ -19,6 +19,7 @@ class AdAccountRequest extends Model
         'currency',
         'business_manager_id',
         'account_name',
+        'account_preference',
         'account_id',
         'card_type',
         'card_number',

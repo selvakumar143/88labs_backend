@@ -76,6 +76,7 @@ class AdAccountRequestController extends Controller
             ])],
             'business_manager_id' => ['sometimes', 'nullable', 'exists:business_managers,id'],
             'account_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'account_preference' => ['sometimes', 'nullable', 'string', 'max:255'],
             'account_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'card_type' => ['sometimes', 'nullable', 'string', 'max:100'],
             'card_number' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -97,6 +98,10 @@ class AdAccountRequestController extends Controller
 
             if (array_key_exists('account_name', $validated)) {
                 $updateData['account_name'] = $validated['account_name'];
+            }
+
+            if (array_key_exists('account_preference', $validated)) {
+                $updateData['account_preference'] = $validated['account_preference'];
             }
 
             if (array_key_exists('account_id', $validated)) {

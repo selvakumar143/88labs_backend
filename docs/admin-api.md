@@ -102,11 +102,11 @@ This document covers admin-facing endpoints from `routes/api.php`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| GET | `/admin/export-topup` | Export topup report PDF |
+| GET | `/admin/transactions/export` | Export transactions listing (wallet topup, account topup, exchange) as CSV or Excel (`format=csv|excel`) |
+| GET | `/admin/export-topup` | Legacy alias for `/admin/transactions/export` (CSV/Excel) |
 
 ## Logout
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | POST | `/admin/logout` | Logout admin |
-

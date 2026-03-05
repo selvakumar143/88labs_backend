@@ -52,6 +52,13 @@ This document covers customer/client-facing endpoints from `routes/api.php`.
 | POST | `/top-requests` | Create top request |
 | GET | `/my-top-requests` | List current customer top requests |
 
+### Transactions
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/client/transactions` | List wallet topup, account topup, and exchange transactions |
+| GET | `/client/transactions/export` | Export transactions listing as CSV or Excel (`format=csv|excel`) |
+
 ### Dashboard
 
 | Method | Endpoint | Description |
