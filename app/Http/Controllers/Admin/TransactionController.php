@@ -202,6 +202,8 @@ class TransactionController extends Controller
                 $q->where('request_id', 'like', "%{$search}%")
                     ->orWhere('transaction_hash', 'like', "%{$search}%")
                     ->orWhere('amount', 'like', "%{$search}%")
+                    ->orWhere('request_amount', 'like', "%{$search}%")
+                    ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhere('currency', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%")
@@ -211,6 +213,9 @@ class TransactionController extends Controller
         }
 
         return $query->latest()->get()->map(function (WalletTopup $item) {
+            $requestAmount = (string) ($item->request_amount ?? $item->amount);
+            $serviceFee = (string) ($item->service_fee ?? 0);
+
             return [
                 'transaction_type' => 'wallet_topup',
                 'transaction_type_key' => 'wallet_topup',
@@ -223,6 +228,9 @@ class TransactionController extends Controller
                 'account_name' => null,
                 'business_manager_name' => null,
                 'amount' => (string) $item->amount,
+                'request_amount' => $requestAmount,
+                'service_fee' => $serviceFee,
+                'total_amount' => (string) $item->total_amount,
                 'currency' => $item->currency,
                 'status' => $item->status,
                 'payment_mode' => $item->payment_mode,
@@ -238,10 +246,8 @@ class TransactionController extends Controller
     {
         $query = TopRequest::with([
             'client:id,name',
-            'adAccountRequest:id,request_id,business_name,business_manager_id,account_management_id',
+            'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-            'adAccountRequest.accountManagement:id,account_id,name,business_manager_id',
-            'adAccountRequest.accountManagement.businessManager:id,name',
         ]);
 
         if (!empty($filters['client_id']) && $filters['client_id'] !== 'all') {
@@ -277,7 +283,6 @@ class TransactionController extends Controller
 
         return $query->latest()->get()->map(function (TopRequest $item) {
             $adAccount = $item->adAccountRequest;
-            $account = optional($adAccount)->accountManagement;
 
             return [
                 'transaction_type' => 'account_topup',
@@ -287,10 +292,9 @@ class TransactionController extends Controller
                 'client_id' => $item->client_id,
                 'client_name' => optional($item->client)->name,
                 'business_name' => optional($adAccount)->business_name,
-                'account_id' => optional($account)->account_id,
-                'account_name' => optional($account)->name,
-                'business_manager_name' => optional(optional($adAccount)->businessManager)->name
-                    ?? optional(optional($account)->businessManager)->name,
+                'account_id' => optional($adAccount)->account_id,
+                'account_name' => optional($adAccount)->account_name,
+                'business_manager_name' => optional(optional($adAccount)->businessManager)->name,
                 'amount' => (string) $item->amount,
                 'currency' => $item->currency,
                 'status' => $item->status,

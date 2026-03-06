@@ -139,7 +139,9 @@ class TransactionInvoiceController extends Controller
             'approver:id,name,email',
         ])->where('client_id', Auth::id())->findOrFail($id);
 
-        $amount = (float) $item->amount;
+        $requestAmount = (float) ($item->request_amount ?? $item->amount);
+        $serviceFee = (float) ($item->service_fee ?? 0);
+        $totalAmount = $requestAmount + $serviceFee;
 
         return [
             'invoice_number' => 'INV-WALLET-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
@@ -147,7 +149,7 @@ class TransactionInvoiceController extends Controller
             'reference' => $item->request_id ?? ('WALLET-' . $item->id),
             'status' => $item->status,
             'currency' => $item->currency,
-            'amount' => $amount,
+            'amount' => $totalAmount,
             'created_at' => optional($item->created_at)?->toDateTimeString(),
             'approved_at' => optional($item->approved_at)?->toDateTimeString(),
             'approved_by' => optional($item->approver)->name,
@@ -159,17 +161,25 @@ class TransactionInvoiceController extends Controller
             'details' => [
                 'payment_mode' => $item->payment_mode,
                 'transaction_hash' => $item->transaction_hash,
+                'request_amount' => $requestAmount,
+                'service_fee' => $serviceFee,
             ],
             'line_items' => [
                 [
                     'description' => 'Wallet topup credit',
                     'quantity' => 1,
-                    'unit_price' => $amount,
-                    'total' => $amount,
+                    'unit_price' => $requestAmount,
+                    'total' => $requestAmount,
+                ],
+                [
+                    'description' => 'Service fee',
+                    'quantity' => 1,
+                    'unit_price' => $serviceFee,
+                    'total' => $serviceFee,
                 ],
             ],
-            'subtotal' => $amount,
-            'total' => $amount,
+            'subtotal' => $requestAmount,
+            'total' => $totalAmount,
         ];
     }
 
@@ -177,15 +187,12 @@ class TransactionInvoiceController extends Controller
     {
         $item = TopRequest::with([
             'client:id,name,email',
-            'adAccountRequest:id,request_id,business_name,business_manager_id,account_management_id',
+            'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-            'adAccountRequest.accountManagement:id,account_id,name,business_manager_id',
-            'adAccountRequest.accountManagement.businessManager:id,name',
         ])->where('client_id', Auth::id())->findOrFail($id);
 
         $amount = (float) $item->amount;
         $adAccount = $item->adAccountRequest;
-        $account = optional($adAccount)->accountManagement;
 
         return [
             'invoice_number' => 'INV-ACCOUNT-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
@@ -205,10 +212,9 @@ class TransactionInvoiceController extends Controller
             'details' => [
                 'ad_account_request_id' => optional($adAccount)->request_id,
                 'business_name' => optional($adAccount)->business_name,
-                'account_id' => optional($account)->account_id,
-                'account_name' => optional($account)->name,
-                'business_manager_name' => optional(optional($adAccount)->businessManager)->name
-                    ?? optional(optional($account)->businessManager)->name,
+                'account_id' => optional($adAccount)->account_id,
+                'account_name' => optional($adAccount)->account_name,
+                'business_manager_name' => optional(optional($adAccount)->businessManager)->name,
             ],
             'line_items' => [
                 [

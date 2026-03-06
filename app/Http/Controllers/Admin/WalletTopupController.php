@@ -39,6 +39,8 @@ class WalletTopupController extends Controller
                 $q->where('request_id', 'like', "%{$search}%")
                     ->orWhere('transaction_hash', 'like', "%{$search}%")
                     ->orWhere('amount', 'like', "%{$search}%")
+                    ->orWhere('request_amount', 'like', "%{$search}%")
+                    ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($clientQuery) use ($search) {
                         $clientQuery->where('name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
