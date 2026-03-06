@@ -12,10 +12,15 @@ class WalletTopupController extends Controller
 {
     public function store(Request $request)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
+        $validated = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01',
+            'request_amount' => 'nullable|numeric|min:0.01|required_without:amount',
+            'service_fee' => 'nullable|numeric|min:0',
             'transaction_hash' => 'required|string'
         ]);
+
+        $requestAmount = (float) ($validated['request_amount'] ?? $validated['amount']);
+        $serviceFee = round((float) ($validated['service_fee'] ?? 0), 2);
 
         $lastId = WalletTopup::max('id') + 1;
         $requestId = 'TOP-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
@@ -23,8 +28,10 @@ class WalletTopupController extends Controller
         $data = WalletTopup::create([
             'request_id' => $requestId,
             'client_id' => Auth::id(),
-            'amount' => $request->amount,
-            'transaction_hash' => $request->transaction_hash,
+            'amount' => $requestAmount,
+            'request_amount' => $requestAmount,
+            'service_fee' => $serviceFee,
+            'transaction_hash' => $validated['transaction_hash'],
             'status' => WalletTopup::STATUS_PENDING
         ]);
 
@@ -38,6 +45,8 @@ class WalletTopupController extends Controller
                 'client_id' => Auth::id(),
                 'client_name' => Auth::user()->name,
                 'amount' => $data->amount,
+                'request_amount' => $data->request_amount,
+                'service_fee' => $data->service_fee,
                 'status' => $data->status,
             ]
         );

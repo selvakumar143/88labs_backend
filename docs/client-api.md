@@ -45,6 +45,11 @@ This document covers customer/client-facing endpoints from `routes/api.php`.
 | GET | `/my-wallet-topups` | List current customer topups |
 | GET | `/client/wallet-summary` | Wallet summary |
 
+Wallet topup request body:
+- `request_amount` (number, required; `amount` is still accepted for backward compatibility)
+- `service_fee` (number, optional, default `0`)
+- `transaction_hash` (string, required)
+
 ### Top Requests
 
 | Method | Endpoint | Description |
@@ -66,6 +71,11 @@ This document covers customer/client-facing endpoints from `routes/api.php`.
 | GET | `/client/dashboard` | Dashboard overview |
 | GET | `/client/dashboard/wallet` | Dashboard wallet details |
 | GET | `/client/dashboard/active-accounts-total` | Active ad account count |
+| GET | `/client/profile/fields` | Get selected client profile fields (default: `serviceFeePercent`) |
+
+Query parameter:
+- `columns` can be a comma-separated list or array of client columns.
+- Example: `/client/profile/fields?columns=serviceFeePercent,clientName,settlementCurrency`
 
 ### Notifications
 

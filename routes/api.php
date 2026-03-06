@@ -18,6 +18,7 @@ use App\Http\Controllers\Client\ExchangeRequestController as ClientExchangeReque
 use App\Http\Controllers\Admin\ExchangeRequestController as AdminExchangeRequestController;
 use App\Http\Controllers\Client\TransactionController as ClientTransactionController;
 use App\Http\Controllers\Client\TransactionInvoiceController as ClientTransactionInvoiceController;
+use App\Http\Controllers\Client\ClientProfileController;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -95,6 +96,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/client/dashboard', [ClientDashboardController::class, 'dashboard']);
         Route::get('/client/dashboard/wallet', [ClientDashboardController::class, 'wallet']);
         Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
+        Route::get('/client/profile/fields', [ClientProfileController::class, 'fields']);
 
         // Notifications
         Route::get('/client/notifications/unread-count', [NotificationController::class, 'unreadCount']);

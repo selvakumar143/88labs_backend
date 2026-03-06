@@ -139,7 +139,9 @@ class TransactionInvoiceController extends Controller
             'approver:id,name,email',
         ])->where('client_id', Auth::id())->findOrFail($id);
 
-        $amount = (float) $item->amount;
+        $requestAmount = (float) ($item->request_amount ?? $item->amount);
+        $serviceFee = (float) ($item->service_fee ?? 0);
+        $totalAmount = $requestAmount + $serviceFee;
 
         return [
             'invoice_number' => 'INV-WALLET-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
@@ -147,7 +149,7 @@ class TransactionInvoiceController extends Controller
             'reference' => $item->request_id ?? ('WALLET-' . $item->id),
             'status' => $item->status,
             'currency' => $item->currency,
-            'amount' => $amount,
+            'amount' => $totalAmount,
             'created_at' => optional($item->created_at)?->toDateTimeString(),
             'approved_at' => optional($item->approved_at)?->toDateTimeString(),
             'approved_by' => optional($item->approver)->name,
@@ -159,17 +161,25 @@ class TransactionInvoiceController extends Controller
             'details' => [
                 'payment_mode' => $item->payment_mode,
                 'transaction_hash' => $item->transaction_hash,
+                'request_amount' => $requestAmount,
+                'service_fee' => $serviceFee,
             ],
             'line_items' => [
                 [
                     'description' => 'Wallet topup credit',
                     'quantity' => 1,
-                    'unit_price' => $amount,
-                    'total' => $amount,
+                    'unit_price' => $requestAmount,
+                    'total' => $requestAmount,
+                ],
+                [
+                    'description' => 'Service fee',
+                    'quantity' => 1,
+                    'unit_price' => $serviceFee,
+                    'total' => $serviceFee,
                 ],
             ],
-            'subtotal' => $amount,
-            'total' => $amount,
+            'subtotal' => $requestAmount,
+            'total' => $totalAmount,
         ];
     }
 

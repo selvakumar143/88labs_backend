@@ -29,6 +29,7 @@
         <tr><td>Client Email</td><td>{{ $invoice['client']['email'] ?? '-' }}</td><td>Currency</td><td>{{ $invoice['currency'] ?? '-' }}</td></tr>
         <tr><td>Created At</td><td>{{ $invoice['created_at'] ?? '-' }}</td><td>Approved At</td><td>{{ $invoice['approved_at'] ?? '-' }}</td></tr>
         <tr><td>Payment Mode</td><td>{{ $invoice['details']['payment_mode'] ?? '-' }}</td><td>Approved By</td><td>{{ $invoice['approved_by'] ?? '-' }}</td></tr>
+        <tr><td>Request Amount</td><td>{{ number_format((float) ($invoice['details']['request_amount'] ?? 0), 2) }}</td><td>Service Fee</td><td>{{ number_format((float) ($invoice['details']['service_fee'] ?? 0), 2) }}</td></tr>
         <tr><td>Transaction Hash</td><td colspan="3">{{ $invoice['details']['transaction_hash'] ?? '-' }}</td></tr>
     </table>
 

@@ -200,11 +200,16 @@ class TransactionController extends Controller
                 $q->where('request_id', 'like', "%{$search}%")
                     ->orWhere('transaction_hash', 'like', "%{$search}%")
                     ->orWhere('amount', 'like', "%{$search}%")
+                    ->orWhere('request_amount', 'like', "%{$search}%")
+                    ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhere('currency', 'like', "%{$search}%");
             });
         }
 
         return $query->latest()->get()->map(function (WalletTopup $item) {
+            $requestAmount = (string) ($item->request_amount ?? $item->amount);
+            $serviceFee = (string) ($item->service_fee ?? 0);
+
             return [
                 'transaction_type' => 'wallet_topup',
                 'transaction_type_key' => 'wallet_topup',
@@ -217,6 +222,9 @@ class TransactionController extends Controller
                 'account_name' => null,
                 'business_manager_name' => null,
                 'amount' => (string) $item->amount,
+                'request_amount' => $requestAmount,
+                'service_fee' => $serviceFee,
+                'total_amount' => (string) $item->total_amount,
                 'currency' => $item->currency,
                 'status' => $item->status,
                 'payment_mode' => $item->payment_mode,

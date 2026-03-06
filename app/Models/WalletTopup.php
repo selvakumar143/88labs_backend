@@ -15,12 +15,20 @@ class WalletTopup extends Model
         'request_id',
         'client_id',
         'amount',
+        'request_amount',
+        'service_fee',
         'currency',
         'payment_mode',
         'transaction_hash',
         'status',
         'approved_by',
         'approved_at'
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'request_amount' => 'decimal:2',
+        'service_fee' => 'decimal:2',
     ];
 
     const STATUS_PENDING = 'pending';
@@ -49,6 +57,9 @@ class WalletTopup extends Model
 
     public function getTotalAmountAttribute(): string
     {
-        return (string) $this->amount;
+        $requestAmount = (float) ($this->request_amount ?? $this->amount ?? 0);
+        $serviceFee = (float) ($this->service_fee ?? 0);
+
+        return number_format($requestAmount + $serviceFee, 2, '.', '');
     }
 }
