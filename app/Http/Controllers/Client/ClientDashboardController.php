@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\WalletTopup;
 use App\Models\AdAccountRequest;
+use App\Models\ExchangeRequest;
 use App\Models\TopRequest;
 
 class ClientDashboardController extends Controller
@@ -33,7 +34,10 @@ class ClientDashboardController extends Controller
             ->pluck('total', 'currency');
 
         $adTopupQuery = TopRequest::where('client_id', $clientId)
-            ->whereRaw('LOWER(status) = ?', [TopRequest::STATUS_APPROVED]);
+            ->whereIn(DB::raw('LOWER(status)'), [
+                TopRequest::STATUS_PENDING,
+                TopRequest::STATUS_APPROVED,
+            ]);
 
         if ($startDate) {
             $adTopupQuery->whereDate('updated_at', '>=', Carbon::parse($startDate));
@@ -56,23 +60,35 @@ class ClientDashboardController extends Controller
                 ->where('client_id', $clientId);
 
             if (Schema::hasColumn('exchange_requests', 'status')) {
-                $exchangeQuery->whereRaw('LOWER(status) = ?', ['approved']);
+                $exchangeQuery->whereIn(DB::raw('LOWER(status)'), [
+                    ExchangeRequest::STATUS_PENDING,
+                    ExchangeRequest::STATUS_APPROVED,
+                ]);
             }
 
-            $exchangeDateColumn = null;
+            $exchangeDateColumns = [];
             foreach (['approved_at', 'updated_at', 'created_at'] as $candidate) {
                 if (Schema::hasColumn('exchange_requests', $candidate)) {
-                    $exchangeDateColumn = $candidate;
-                    break;
+                    $exchangeDateColumns[] = $candidate;
                 }
             }
 
-            if ($exchangeDateColumn && $startDate) {
-                $exchangeQuery->whereDate($exchangeDateColumn, '>=', Carbon::parse($startDate));
-            }
+            if (!empty($exchangeDateColumns) && ($startDate || $endDate)) {
+                $exchangeDateExpression = 'DATE(COALESCE(' . implode(', ', $exchangeDateColumns) . '))';
 
-            if ($exchangeDateColumn && $endDate) {
-                $exchangeQuery->whereDate($exchangeDateColumn, '<=', Carbon::parse($endDate));
+                if ($startDate) {
+                    $exchangeQuery->whereRaw(
+                        "{$exchangeDateExpression} >= ?",
+                        [Carbon::parse($startDate)->toDateString()]
+                    );
+                }
+
+                if ($endDate) {
+                    $exchangeQuery->whereRaw(
+                        "{$exchangeDateExpression} <= ?",
+                        [Carbon::parse($endDate)->toDateString()]
+                    );
+                }
             }
 
             $baseCurrencyColumn = Schema::hasColumn('exchange_requests', 'base_currency')
