@@ -66,10 +66,10 @@ class CustomerAuthController extends Controller
 
         $user = Auth::user();
 
-        if (!$user->hasAnyRole(['customer', 'Customer'])) {
+        if (!$user->hasAnyRole(['customer', 'Customer', 'client_admin', 'client_manager', 'client_viewer'])) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Unauthorized. Not a Customer.'
+                'message' => 'Unauthorized. Not a client user.'
             ], 403);
         }
 

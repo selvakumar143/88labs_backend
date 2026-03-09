@@ -12,11 +12,7 @@ class ServiceController extends Controller
      */
     public function getServices(Request $request)
     {
-        $request->validate([
-            'client_id' => 'required|integer',
-        ]);
-
-        $clientId = (int) $request->input('client_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         // Default services structure
         $defaultServices = [
@@ -55,14 +51,13 @@ class ServiceController extends Controller
     public function updateService(Request $request)
     {
         $request->validate([
-            'client_id'   => 'required|integer',
             'service_key' => 'required_without:services|string',
             'status'      => 'required_without:services|boolean',
             'services'    => 'nullable|array',
             'services.*'  => 'boolean',
         ]);
 
-        $clientId   = $request->client_id;
+        $clientId   = (int) $request->attributes->get('current_client_id');
         $serviceKey = $request->service_key;
         $status     = $request->status;
 

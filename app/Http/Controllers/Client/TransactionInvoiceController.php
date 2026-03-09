@@ -7,7 +7,6 @@ use App\Models\ExchangeRequest;
 use App\Models\TopRequest;
 use App\Models\WalletTopup;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class TransactionInvoiceController extends Controller
 {
@@ -132,12 +131,16 @@ class TransactionInvoiceController extends Controller
 
     private function walletTopupInvoice(int $id): array
     {
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $item = WalletTopup::with([
             'client:id,name,email',
             'clientProfileByUserId:id,user_id,clientName',
             'clientProfileByClientId:id,user_id,clientName',
             'approver:id,name,email',
-        ])->where('client_id', Auth::id())->findOrFail($id);
+        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
         $requestAmount = (float) ($item->request_amount ?? $item->amount);
         $serviceFee = (float) ($item->service_fee ?? 0);
@@ -185,11 +188,15 @@ class TransactionInvoiceController extends Controller
 
     private function accountTopupInvoice(int $id): array
     {
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $item = TopRequest::with([
             'client:id,name,email',
             'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-        ])->where('client_id', Auth::id())->findOrFail($id);
+        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
         $amount = (float) $item->amount;
         $adAccount = $item->adAccountRequest;
@@ -231,12 +238,16 @@ class TransactionInvoiceController extends Controller
 
     private function exchangeRequestInvoice(int $id): array
     {
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $item = ExchangeRequest::with([
             'client:id,name,email',
             'clientProfileByUserId:id,user_id,clientName',
             'clientProfileByClientId:id,user_id,clientName',
             'approver:id,name,email',
-        ])->where('client_id', Auth::id())->findOrFail($id);
+        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
         $requestAmount = (float) $item->request_amount;
         $serviceFee = (float) $item->service_fee;

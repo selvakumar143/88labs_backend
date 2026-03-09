@@ -12,6 +12,8 @@ class ExchangeRequestController extends Controller
 {
     public function store(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $validated = $request->validate([
             'base_currency' => ['required', 'string', 'max:10'],
             'converion_currency' => ['required', 'string', 'max:10', 'different:base_currency'],
@@ -23,7 +25,7 @@ class ExchangeRequestController extends Controller
         $data = $this->buildAmounts($validated);
 
         $exchangeRequest = ExchangeRequest::create([
-            'client_id' => Auth::id(),
+            'client_id' => $tenantOwnerUserId,
             'based_cur' => strtoupper($validated['base_currency']),
             'base_currency' => strtoupper($validated['base_currency']),
             'convertion_cur' => strtoupper($validated['converion_currency']),
@@ -43,7 +45,7 @@ class ExchangeRequestController extends Controller
             message: Auth::user()->name . " submitted exchange request #{$exchangeRequest->id}.",
             meta: [
                 'exchange_request_id' => $exchangeRequest->id,
-                'client_id' => Auth::id(),
+                'client_id' => $tenantOwnerUserId,
                 'client_name' => Auth::user()->name,
                 'base_currency' => $exchangeRequest->base_currency,
                 'converion_currency' => $exchangeRequest->converion_currency,
@@ -71,13 +73,15 @@ class ExchangeRequestController extends Controller
 
     public function index(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $query = ExchangeRequest::with([
             'client:id,name,email',
             'clientProfileByUserId:id,user_id,clientName',
             'clientProfileByClientId:id,user_id,clientName',
             'approver:id,name,email',
         ])
-            ->where('client_id', Auth::id());
+            ->where('client_id', $tenantOwnerUserId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -124,13 +128,15 @@ class ExchangeRequestController extends Controller
 
     public function show($id)
     {
+        $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
+
         $exchangeRequest = ExchangeRequest::with([
             'client:id,name,email',
             'clientProfileByUserId:id,user_id,clientName',
             'clientProfileByClientId:id,user_id,clientName',
             'approver:id,name,email',
         ])
-            ->where('client_id', Auth::id())
+            ->where('client_id', $tenantOwnerUserId)
             ->findOrFail($id);
         $exchangeRequest->client_name = $this->resolveClientName($exchangeRequest);
 
@@ -142,7 +148,8 @@ class ExchangeRequestController extends Controller
 
     public function update(Request $request, $id)
     {
-        $exchangeRequest = ExchangeRequest::where('client_id', Auth::id())->findOrFail($id);
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $exchangeRequest = ExchangeRequest::where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
         if ($exchangeRequest->status !== ExchangeRequest::STATUS_PENDING) {
             return response()->json([
@@ -210,7 +217,8 @@ class ExchangeRequestController extends Controller
 
     public function destroy($id)
     {
-        $exchangeRequest = ExchangeRequest::where('client_id', Auth::id())->findOrFail($id);
+        $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
+        $exchangeRequest = ExchangeRequest::where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
         if ($exchangeRequest->status !== ExchangeRequest::STATUS_PENDING) {
             return response()->json([

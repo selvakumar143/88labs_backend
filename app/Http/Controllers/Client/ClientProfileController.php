@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class ClientProfileController extends Controller
@@ -55,17 +54,10 @@ class ClientProfileController extends Controller
             ]);
         }
 
-        $authUser = Auth::user();
+        $tenantClientId = (int) $request->attributes->get('current_client_id');
 
         $client = Client::query()
-            ->where(function ($query) use ($authUser) {
-                $query->where('user_id', $authUser->id)
-                    ->orWhere('id', $authUser->id);
-
-                if (!empty($authUser->email)) {
-                    $query->orWhere('email', $authUser->email);
-                }
-            })
+            ->where('id', $tenantClientId)
             ->first($requestedColumns);
 
         if (!$client) {

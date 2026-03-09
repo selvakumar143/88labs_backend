@@ -56,7 +56,7 @@ Route::get('/reset-password/{token}', function (string $token) {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:customer|Customer'])
+Route::middleware(['auth', 'role:customer|Customer|client_admin|client_manager|client_viewer', 'tenant.client'])
     ->prefix('client')
     ->group(function () {
 

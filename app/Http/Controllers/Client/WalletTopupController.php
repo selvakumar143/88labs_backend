@@ -12,6 +12,8 @@ class WalletTopupController extends Controller
 {
     public function store(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0.01',
             'request_amount' => 'nullable|numeric|min:0.01|required_without:amount',
@@ -27,7 +29,7 @@ class WalletTopupController extends Controller
 
         $data = WalletTopup::create([
             'request_id' => $requestId,
-            'client_id' => Auth::id(),
+            'client_id' => $tenantOwnerUserId,
             'amount' => $requestAmount,
             'request_amount' => $requestAmount,
             'service_fee' => $serviceFee,
@@ -42,7 +44,7 @@ class WalletTopupController extends Controller
             meta: [
                 'wallet_topup_id' => $data->id,
                 'request_id' => $data->request_id,
-                'client_id' => Auth::id(),
+                'client_id' => $tenantOwnerUserId,
                 'client_name' => Auth::user()->name,
                 'amount' => $data->amount,
                 'request_amount' => $data->request_amount,
@@ -60,7 +62,8 @@ class WalletTopupController extends Controller
 
     public function myRequests(Request $request)
     {
-        $query = WalletTopup::where('client_id', Auth::id());
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $query = WalletTopup::where('client_id', $tenantOwnerUserId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);

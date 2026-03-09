@@ -63,8 +63,6 @@ class ClientController extends Controller
                 'email_verified_at' => null,
             ]);
 
-            $user->assignRole('customer');
-
             $client = Client::create([
                 'clientCode' => $request->clientCode,
                 'clientName' => $request->clientName,
@@ -82,7 +80,15 @@ class ClientController extends Controller
                 'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
                 'enabled' => false,
                 'user_id' => $user->id,
+                'primary_admin_user_id' => $user->id,
             ]);
+
+            $user->update([
+                'client_id' => $client->id,
+            ]);
+
+            $user->assignRole('customer');
+            $user->assignRole('client_admin');
 
             if (blank($client->clientCode)) {
                 $client->clientCode = 'CL-'.str_pad((string) $client->id, 4, '0', STR_PAD_LEFT);
@@ -233,10 +239,13 @@ class ClientController extends Controller
                 $user->email_verified_at = now();
                 $user->save();
 
-                // activate client
-                $user->client->update([
-                    'enabled' => true
-                ]);
+                // Activate tenant only when this user is the primary client owner.
+                $ownedClient = $user->client()->first();
+                if ($ownedClient && !$ownedClient->enabled) {
+                    $ownedClient->update([
+                        'enabled' => true
+                    ]);
+                }
             }
         );
 
