@@ -49,6 +49,15 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'sendgrid' => [
+            'transport' => 'sendgrid',
+            'dsn' => env('SENDGRID_DSN'),
+            'api_key' => env('SENDGRID_API_KEY'),
+            'scheme' => env('SENDGRID_SCHEME', 'sendgrid+api'),
+            'host' => env('SENDGRID_HOST', 'default'),
+            'region' => env('SENDGRID_REGION'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
