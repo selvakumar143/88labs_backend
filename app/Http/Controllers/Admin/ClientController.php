@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ServiceController;
 use App\Models\Client;
 use App\Models\User;
-use App\Notifications\SetPasswordNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
@@ -91,7 +91,46 @@ class ClientController extends Controller
 
             // Send invite "set password" email with a password broker token
             $token = Password::broker()->createToken($user);
-            $user->notify(new SetPasswordNotification($token));
+            $url = route('password.setup', [
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+            $expireMinutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60);
+            $subject = 'Set Your Account Password';
+            $contentText = implode("\n", [
+                'Welcome, '.$user->name.'!',
+                'Your account has been created. Set your password to activate your account.',
+                'Set Password: '.$url,
+                'If the button does not work, copy and paste this link into your browser: '.$url,
+                'This link will expire in '.$expireMinutes.' minutes.',
+            ]);
+            $safeName = htmlspecialchars($user->name, ENT_QUOTES, 'UTF-8');
+            $safeUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+            $contentHtml = implode("\n", [
+                '<p>Welcome, '.$safeName.'!</p>',
+                '<p>Your account has been created. Set your password to activate your account.</p>',
+                '<p>
+                <a href="'.$safeUrl.'" 
+                style="
+                display:inline-block;
+                padding:12px 22px;
+                background-color:#2563eb;
+                color:#ffffff;
+                text-decoration:none;
+                border-radius:6px;
+                font-weight:600;
+                ">
+                Set Password
+                </a>
+                </p>',
+                '<p>If the button does not work, copy and paste this link into your browser:</p>',
+                '<p><a href="'.$safeUrl.'">'.$safeUrl.'</a></p>',
+                '<p>This link will expire in '.$expireMinutes.' minutes.</p>',
+            ]);
+            $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, $contentHtml);
+            if (isset($mailResult['error'])) {
+                throw new \Exception('Mail send failed: '.$mailResult['error']);
+            }
 
             DB::commit();
 
