@@ -166,21 +166,55 @@ class CustomerAuthController extends Controller
                 ], 403);
             }
 
-            $status = Password::sendResetLink(
-                $request->only('email')
-            );
-
-            if ($status === Password::RESET_LINK_SENT) {
+            $token = Password::broker()->createToken($user);
+            $url = route('password.reset', [
+                'token' => $token,
+                'email' => $user->email,
+            ]);
+            $expireMinutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60);
+            $subject = 'Reset Password Notification';
+            $contentText = implode("\n", [
+                'You are receiving this email because we received a password reset request for your account.',
+                'Reset Password: '.$url,
+                'If the button does not work, copy and paste this link into your browser: '.$url,
+                'This password reset link will expire in '.$expireMinutes.' minutes.',
+                'If you did not request a password reset, no further action is required.',
+            ]);
+            $safeUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+            $contentHtml = implode("\n", [
+                '<p>You are receiving this email because we received a password reset request for your account.</p>',
+                 '<p>
+                <a href="'.$safeUrl.'" 
+                style="
+                display:inline-block;
+                padding:12px 22px;
+                background-color:#2563eb;
+                color:#ffffff;
+                text-decoration:none;
+                border-radius:6px;
+                font-weight:600;
+                ">
+                Reset Password
+                </a>
+                </p>',
+                '<p>If the button does not work, copy and paste this link into your browser:</p>',
+                '<p><a href="'.$safeUrl.'">'.$safeUrl.'</a></p>',
+                '<p>This password reset link will expire in '.$expireMinutes.' minutes.</p>',
+                '<p>If you did not request a password reset, no further action is required.</p>',
+            ]);
+            $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, $contentHtml);
+            if (isset($mailResult['error'])) {
                 return response()->json([
-                    'status' => 'success',
-                    'message' => 'Password reset link sent to your email'
-                ]);
+                    'status' => 'error',
+                    'message' => 'Failed to send password reset email',
+                    'error' => $mailResult['error'],
+                ], 500);
             }
 
             return response()->json([
-                'status' => 'error',
-                'message' => __($status)
-            ], 400);
+                'status' => 'success',
+                'message' => 'Password reset link sent to your email'
+            ]);
         }
 
         // CASE 2: RESET PASSWORD

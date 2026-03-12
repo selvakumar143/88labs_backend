@@ -4,9 +4,17 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\ClientService;
+use App\Services\SendGridService;
+
+
 
 class ServiceController extends Controller
 {
+    public static function sendMail(string $to, string $subject, string $contentText, ?string $contentHtml = null): array
+    {
+        return SendGridService::sendMail($to, $subject, $contentText, $contentHtml);
+    }
+
     /**
      * Get services for a client
      */
@@ -99,5 +107,17 @@ class ServiceController extends Controller
             'client_id' => $clientId,
             'services'  => $services
         ]);
+    }
+    public function sendTestMail()
+    {
+        $result = self::sendMail(
+            // "sp.selvakumar2012@gmail.com",
+            "siva.techyazh@gmail.com",
+            "Test Email",
+            "Hello from SendGrid API",
+            "<p>Hello from SendGrid API</p>"
+        );
+
+        return response()->json($result);
     }
 }
