@@ -718,3 +718,11 @@ kill "$(cat storage/artisan-serve.pid)" 2>/dev/null || true
 nohup php artisan serve --host=0.0.0.0 --port=8000 > storage/logs/artisan-serve.log 2>&1 < /dev/null &
 echo $! > storage/artisan-serve.pid
 ```
+
+
+
+Cmd to instll for mail 
+composer require symfony/sendgrid-mailer
+composer require symfony/http-client
+
+
