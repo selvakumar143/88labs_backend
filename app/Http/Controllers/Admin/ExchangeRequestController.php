@@ -15,8 +15,8 @@ class ExchangeRequestController extends Controller
     {
         $query = ExchangeRequest::with([
             'client:id,name,email',
-            'clientProfileByUserId:id,user_id,clientName',
-            'clientProfileByClientId:id,user_id,clientName',
+            'clientProfileByUserId:id,primary_admin_user_id,clientName',
+            'clientProfileByClientId:id,primary_admin_user_id,clientName',
             'approver:id,name,email',
         ]);
 
@@ -87,8 +87,8 @@ class ExchangeRequestController extends Controller
     {
         $exchangeRequest = ExchangeRequest::with([
             'client:id,name,email',
-            'clientProfileByUserId:id,user_id,clientName',
-            'clientProfileByClientId:id,user_id,clientName',
+            'clientProfileByUserId:id,primary_admin_user_id,clientName',
+            'clientProfileByClientId:id,primary_admin_user_id,clientName',
             'approver:id,name,email',
         ])->findOrFail($id);
         $exchangeRequest->client_name = $this->resolveClientName($exchangeRequest);
@@ -140,8 +140,8 @@ class ExchangeRequestController extends Controller
             'message' => 'Exchange request created.',
             'data' => tap($exchangeRequest->load([
                 'client:id,name,email',
-                'clientProfileByUserId:id,user_id,clientName',
-                'clientProfileByClientId:id,user_id,clientName',
+                'clientProfileByUserId:id,primary_admin_user_id,clientName',
+                'clientProfileByClientId:id,primary_admin_user_id,clientName',
                 'approver:id,name,email',
             ]), function ($item) {
                 $item->client_name = $this->resolveClientName($item);
@@ -213,8 +213,8 @@ class ExchangeRequestController extends Controller
             'message' => 'Exchange request updated.',
             'data' => tap($exchangeRequest->fresh([
                 'client:id,name,email',
-                'clientProfileByUserId:id,user_id,clientName',
-                'clientProfileByClientId:id,user_id,clientName',
+                'clientProfileByUserId:id,primary_admin_user_id,clientName',
+                'clientProfileByClientId:id,primary_admin_user_id,clientName',
                 'approver:id,name,email',
             ]), function ($item) {
                 $item->client_name = $this->resolveClientName($item);
@@ -265,8 +265,8 @@ class ExchangeRequestController extends Controller
             'message' => 'Exchange request status updated.',
             'data' => tap($exchangeRequest->fresh([
                 'client:id,name,email',
-                'clientProfileByUserId:id,user_id,clientName',
-                'clientProfileByClientId:id,user_id,clientName',
+                'clientProfileByUserId:id,primary_admin_user_id,clientName',
+                'clientProfileByClientId:id,primary_admin_user_id,clientName',
                 'approver:id,name,email',
             ]), function ($item) {
                 $item->client_name = $this->resolveClientName($item);

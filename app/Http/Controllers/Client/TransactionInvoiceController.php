@@ -137,8 +137,8 @@ class TransactionInvoiceController extends Controller
 
         $item = WalletTopup::with([
             'client:id,name,email',
-            'clientProfileByUserId:id,user_id,clientName',
-            'clientProfileByClientId:id,user_id,clientName',
+            'clientProfileByUserId:id,primary_admin_user_id,clientName',
+            'clientProfileByClientId:id,primary_admin_user_id,clientName',
             'approver:id,name,email',
         ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
 
@@ -244,8 +244,8 @@ class TransactionInvoiceController extends Controller
 
         $item = ExchangeRequest::with([
             'client:id,name,email',
-            'clientProfileByUserId:id,user_id,clientName',
-            'clientProfileByClientId:id,user_id,clientName',
+            'clientProfileByUserId:id,primary_admin_user_id,clientName',
+            'clientProfileByClientId:id,primary_admin_user_id,clientName',
             'approver:id,name,email',
         ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
 

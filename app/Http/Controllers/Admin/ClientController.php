@@ -54,6 +54,7 @@ class ClientController extends Controller
         DB::beginTransaction();
 
         try {
+            $creatorAdminId = optional($request->user())->id;
 
             // create user WITHOUT password
             $user = User::create([
@@ -79,15 +80,15 @@ class ClientController extends Controller
                 'serviceFeePercent' => $request->serviceFeePercent,
                 'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
                 'enabled' => false,
-                'user_id' => $user->id,
+                'admin_created_by' => $creatorAdminId,
                 'primary_admin_user_id' => $user->id,
             ]);
 
             $user->update([
                 'client_id' => $client->id,
+                'created_by' => $client->id,
             ]);
 
-            $user->assignRole('customer');
             $user->assignRole('client_admin');
 
             if (blank($client->clientCode)) {
@@ -141,7 +142,7 @@ class ClientController extends Controller
             'email' => [
                 'sometimes',
                 'email',
-                Rule::unique('users', 'email')->ignore($client->user_id),
+                Rule::unique('users', 'email')->ignore($client->primary_admin_user_id),
             ],
             'country' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:255',

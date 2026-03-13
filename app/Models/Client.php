@@ -23,18 +23,23 @@ class Client extends Model
         'serviceFeePercent',
         'serviceFeeEffectiveTime',
         'enabled',
-        'user_id',
+        'admin_created_by',
         'primary_admin_user_id',
     ];
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'primary_admin_user_id');
     }
 
     public function primaryAdmin()
     {
         return $this->belongsTo(User::class, 'primary_admin_user_id');
+    }
+
+    public function creatorAdmin()
+    {
+        return $this->belongsTo(User::class, 'admin_created_by');
     }
 
     public function users()

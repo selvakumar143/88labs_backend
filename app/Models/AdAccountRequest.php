@@ -44,7 +44,7 @@ class AdAccountRequest extends Model
 
     public function clientProfileByUserId()
     {
-        return $this->belongsTo(Client::class, 'client_id', 'user_id');
+        return $this->belongsTo(Client::class, 'client_id', 'primary_admin_user_id');
     }
 
     public function clientProfileByClientId()

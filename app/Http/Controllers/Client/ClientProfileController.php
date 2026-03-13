@@ -28,7 +28,8 @@ class ClientProfileController extends Controller
             'serviceFeePercent',
             'serviceFeeEffectiveTime',
             'enabled',
-            'user_id',
+            'admin_created_by',
+            'primary_admin_user_id',
             'created_at',
             'updated_at',
         ];

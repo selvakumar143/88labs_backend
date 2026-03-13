@@ -15,6 +15,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'client_id',
+        'created_by',
         'name',
         'email',
         'password',
@@ -37,7 +38,7 @@ class User extends Authenticatable
 
     public function client()
     {
-        return $this->hasOne(Client::class);
+        return $this->hasOne(Client::class, 'primary_admin_user_id');
     }
 
     public function tenantClient()
@@ -61,10 +62,6 @@ class User extends Authenticatable
         if ($tenantClient) {
             if (!empty($tenantClient->primary_admin_user_id)) {
                 return (int) $tenantClient->primary_admin_user_id;
-            }
-
-            if (!empty($tenantClient->user_id)) {
-                return (int) $tenantClient->user_id;
             }
         }
 

@@ -12,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 class TeamUserController extends Controller
 {
+    private const DEFAULT_TEAM_ROLE = 'client_manager';
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -58,6 +60,12 @@ class TeamUserController extends Controller
         $admin = $request->user();
         $clientId = (int) $request->attributes->get('current_client_id');
 
+        $request->merge([
+            'name' => $request->input('name', $request->input('username')),
+            'password_confirmation' => $request->input('password_confirmation', $request->input('confirmation_password')),
+            'role' => $request->input('role', self::DEFAULT_TEAM_ROLE),
+        ]);
+
         $isPrimaryAdmin = (int) $admin->id === (int) $request->attributes->get('current_client_owner_user_id');
         if (!$admin->hasAnyRole(['client_admin']) && !$isPrimaryAdmin) {
             return response()->json([
@@ -80,14 +88,13 @@ class TeamUserController extends Controller
         try {
             $member = User::create([
                 'client_id' => $clientId,
+                'created_by' => $clientId,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => $validated['password'] ?? null,
                 'status' => $validated['status'] ?? 'active',
             ]);
 
-            // Keep backward compatibility with existing customer middleware checks.
-            $member->assignRole('customer');
             $member->assignRole($validated['role']);
 
             $shouldSendInvite = (bool) ($validated['send_invite'] ?? empty($validated['password']));
