@@ -112,29 +112,19 @@ public function passwordHandler(Request $request)
             'This password reset link will expire in '.$expireMinutes.' minutes.',
             'If you did not request a password reset, no further action is required.',
         ]);
-        $safeUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
-        $contentHtml = implode("\n", [
-            '<p>You are receiving this email because we received a password reset request for your account.</p>',
-             '<p>
-                <a href="'.$safeUrl.'" 
-                style="
-                display:inline-block;
-                padding:12px 22px;
-                background-color:#2563eb;
-                color:#ffffff;
-                text-decoration:none;
-                border-radius:6px;
-                font-weight:600;
-                ">
-                Reset Password
-                </a>
-                </p>',
-            '<p>If the button does not work, copy and paste this link into your browser:</p>',
-            '<p><a href="'.$safeUrl.'">'.$safeUrl.'</a></p>',
-            '<p>This password reset link will expire in '.$expireMinutes.' minutes.</p>',
-            '<p>If you did not request a password reset, no further action is required.</p>',
+        $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, null, [
+            'heading' => 'Reset Your Password',
+            'greeting' => 'Hello '.$user->name.',',
+            'lines' => [
+                'You are receiving this email because we received a password reset request for your account.',
+            ],
+            'action_text' => 'Reset Password',
+            'action_url' => $url,
+            'footer_lines' => [
+                'This password reset link will expire in '.$expireMinutes.' minutes.',
+                'If you did not request a password reset, no further action is required.',
+            ],
         ]);
-        $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, $contentHtml);
         if (isset($mailResult['error'])) {
             return response()->json([
                 'status' => 'error',
