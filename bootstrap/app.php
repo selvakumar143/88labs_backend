@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Spatie\Permission\Exceptions\UnauthorizedException;
 use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\ResolveClientTenantContext;
 
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\PermissionMiddleware;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'auth' => Authenticate::class,
+            'tenant.client' => ResolveClientTenantContext::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,

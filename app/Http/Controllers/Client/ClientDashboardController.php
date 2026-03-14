@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -164,7 +163,7 @@ class ClientDashboardController extends Controller
 
     public function dashboard(Request $request)
     {
-        $clientId = Auth::id();
+        $clientId = (int) $request->attributes->get('current_client_owner_user_id');
         $year = (int) $request->input('year', now()->year);
 
         $walletBalances = $this->getWalletBalances($clientId);
@@ -252,7 +251,7 @@ class ClientDashboardController extends Controller
 
     public function wallet(Request $request)
     {
-        $clientId = Auth::id();
+        $clientId = (int) $request->attributes->get('current_client_owner_user_id');
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
 
@@ -266,7 +265,9 @@ class ClientDashboardController extends Controller
 
     public function walletSummary()
     {
-        $clientId = Auth::id();
+        $clientId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
         $balances = $this->getWalletBalances($clientId);
 
         return response()->json([
@@ -277,7 +278,9 @@ class ClientDashboardController extends Controller
 
     public function totalActiveAccounts()
     {
-        $clientId = Auth::id();
+        $clientId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
         $totalActiveAdsAccount = $this->getTotalActiveAdsAccount($clientId);
 
         return response()->json([

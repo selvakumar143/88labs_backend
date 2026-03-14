@@ -66,10 +66,41 @@ class CustomerAuthController extends Controller
 
         $user = Auth::user();
 
-        if (!$user->hasAnyRole(['customer', 'Customer'])) {
+        if (!$user->hasAnyRole(['client_admin', 'client_manager', 'client_viewer'])) {
+            Auth::logout();
+
             return response()->json([
                 'status' => 'error',
-                'message' => 'Unauthorized. Not a Customer.'
+                'message' => 'Unauthorized. Not a client user.'
+            ], 403);
+        }
+
+        if ($user->status !== 'active') {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your account is inactive.',
+            ], 403);
+        }
+
+        $tenantClient = $user->tenantClient()->with('primaryAdmin:id,status')->first() ?? $user->client()->with('primaryAdmin:id,status')->first();
+
+        if ($tenantClient && !$tenantClient->enabled) {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your client account is disabled.',
+            ], 403);
+        }
+
+        if ($tenantClient && $tenantClient->primaryAdmin && $tenantClient->primaryAdmin->status !== 'active') {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your client admin account is inactive.',
             ], 403);
         }
 
@@ -159,10 +190,10 @@ class CustomerAuthController extends Controller
             ]);
 
             $user = User::where('email', $request->email)->first();
-            if (!$user || !$user->hasAnyRole(['customer', 'Customer'])) {
+            if (!$user || !$user->hasAnyRole(['client_admin', 'client_manager', 'client_viewer'])) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Unauthorized. Not a Customer.',
+                    'message' => 'Unauthorized. Not a client user.',
                 ], 403);
             }
 

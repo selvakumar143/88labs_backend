@@ -1,0 +1,550 @@
+{
+  "info": {
+    "_postman_id": "77f5d1d9-5e4b-4a79-9d3a-88labs-backend-collection",
+    "name": "88Labs Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Auth, admin, client, and sub-user test flow for the 88Labs backend. Note: POST /admin/clients creates a passwordless invited client, so login flow uses the seeded client@example.com account unless you complete the password setup flow from email."
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('sub_user_email')) {",
+          "  pm.environment.set('sub_user_email', `subuser+${Date.now()}@example.com`);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin login ok', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.environment.set('admin_token', json.token);",
+                  "}",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set('admin_user_id', json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": "{{base_url}}/admin/login"
+          }
+        },
+        {
+          "name": "Client Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client login ok', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.environment.set('client_token', json.token);",
+                  "}",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set('client_user_id', json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
+            },
+            "url": "{{base_url}}/customer/login"
+          }
+        },
+        {
+          "name": "Sub User Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sub user login ok', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.environment.set('sub_user_token', json.token);",
+                  "}",
+                  "if (json.user && json.user.id) {",
+                  "  pm.environment.set('sub_user_id', json.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sub_user_email}}\",\n  \"password\": \"{{sub_user_password}}\"\n}"
+            },
+            "url": "{{base_url}}/customer/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Admin",
+      "item": [
+        {
+          "name": "Create Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "const client = json.data || {};",
+                  "if (client.id) {",
+                  "  pm.environment.set('created_client_id', client.id);",
+                  "}",
+                  "if (client.primary_admin_user_id) {",
+                  "  pm.environment.set('created_client_primary_admin_user_id', client.primary_admin_user_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientCode\": \"CL-POSTMAN-001\",\n  \"clientName\": \"Postman Client\",\n  \"email\": \"postman.client@example.com\",\n  \"country\": \"India\",\n  \"phone\": \"9999999998\",\n  \"clientType\": \"Agency\",\n  \"niche\": \"Ecommerce\",\n  \"marketCountry\": \"India\",\n  \"settlementMode\": \"Bank Transfer\",\n  \"statementCycle\": \"Monthly\",\n  \"settlementCurrency\": \"INR\",\n  \"cooperationStart\": \"2026-03-13\",\n  \"serviceFeePercent\": 5,\n  \"serviceFeeEffectiveTime\": \"2026-03-13 10:00:00\"\n}"
+            },
+            "url": "{{base_url}}/admin/clients"
+          }
+        },
+        {
+          "name": "List Ad Account Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{base_url}}/admin/ad-account-requests"
+          }
+        },
+        {
+          "name": "Approve Ad Account Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"account_name\": \"Approved Meta Account\",\n  \"account_preference\": \"BM Ready\",\n  \"account_id\": \"ACT-10001\",\n  \"card_type\": \"visa\",\n  \"card_number\": \"4111111111111111\"\n}"
+            },
+            "url": "{{base_url}}/admin/ad-account-requests/{{ad_account_request_id}}"
+          }
+        },
+        {
+          "name": "Approve Wallet Topup",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": "{{base_url}}/admin/wallet-topups/{{wallet_topup_id}}"
+          }
+        },
+        {
+          "name": "Approve Exchange Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": "{{base_url}}/admin/exchange-requests/{{exchange_request_id}}/status"
+          }
+        },
+        {
+          "name": "Approve Top Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": "{{base_url}}/admin/top-requests/{{top_request_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Client",
+      "item": [
+        {
+          "name": "Create Sub User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('sub user created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "const user = (json.data && json.data.user) || {};",
+                  "if (user.id) {",
+                  "  pm.environment.set('sub_user_id', user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{client_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Sub User\",\n  \"email\": \"{{sub_user_email}}\",\n  \"password\": \"{{sub_user_password}}\",\n  \"password_confirmation\": \"{{sub_user_password}}\",\n  \"role\": \"client_manager\",\n  \"status\": \"active\",\n  \"send_invite\": false\n}"
+            },
+            "url": "{{base_url}}/client/team-users"
+          }
+        },
+        {
+          "name": "List Team Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{client_token}}"
+              }
+            ],
+            "url": "{{base_url}}/client/team-users"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Sub User",
+      "item": [
+        {
+          "name": "Create Ad Account Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ad account request created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.environment.set('ad_account_request_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business_name\": \"Postman Ads LLP\",\n  \"platform\": \"meta\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"country\": \"India\",\n  \"currency\": \"INR\",\n  \"website_url\": \"https://example.com\",\n  \"account_type\": \"business\",\n  \"personal_profile\": \"https://facebook.com/test.profile\",\n  \"number_of_accounts\": 2,\n  \"account_preference\": \"Agency managed\",\n  \"notes\": \"Created from Postman collection\"\n}"
+            },
+            "url": "{{base_url}}/client/ad-account-request"
+          }
+        },
+        {
+          "name": "List My Ad Account Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              }
+            ],
+            "url": "{{base_url}}/client/ad-account-requests"
+          }
+        },
+        {
+          "name": "Create Wallet Topup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('wallet topup created', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.environment.set('wallet_topup_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_amount\": 1000,\n  \"service_fee\": 50,\n  \"transaction_hash\": \"txhash-postman-1001\"\n}"
+            },
+            "url": "{{base_url}}/wallet-topup"
+          }
+        },
+        {
+          "name": "Create Exchange Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('exchange request created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.environment.set('exchange_request_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"base_currency\": \"USD\",\n  \"converion_currency\": \"INR\",\n  \"request_amount\": 250,\n  \"service_fee\": 10,\n  \"convertion_rate\": 83.25\n}"
+            },
+            "url": "{{base_url}}/client/exchange-requests"
+          }
+        },
+        {
+          "name": "Create Top Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('top request created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.environment.set('top_request_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ad_account_request_id\": {{ad_account_request_id}},\n  \"amount\": 500,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": "{{base_url}}/top-requests"
+          }
+        },
+        {
+          "name": "List My Wallet Topups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              }
+            ],
+            "url": "{{base_url}}/my-wallet-topups"
+          }
+        },
+        {
+          "name": "List My Top Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              }
+            ],
+            "url": "{{base_url}}/my-top-requests"
+          }
+        },
+        {
+          "name": "List My Exchange Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sub_user_token}}"
+              }
+            ],
+            "url": "{{base_url}}/client/exchange-requests"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}

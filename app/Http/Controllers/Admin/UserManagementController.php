@@ -17,10 +17,10 @@ class UserManagementController extends Controller
     */
     public function index(Request $request)
     {
-        $query = User::select('id', 'name', 'email', 'status', 'created_at')
+        $query = User::select('id', 'client_id', 'name', 'email', 'status', 'created_at')
             ->with([
                 'roles:id,name',
-                'client:id,user_id,clientName',
+                'tenantClient:id,clientName',
             ]);
 
         if ($request->filled('search')) {
@@ -42,8 +42,8 @@ class UserManagementController extends Controller
             ->paginate($request->integer('per_page', 10));
         $users->getCollection()->transform(function ($user) {
             $user->roles = $user->roles->pluck('name')->values();
-            $user->client_name = optional($user->client)->clientName;
-            unset($user->client);
+            $user->client_name = optional($user->tenantClient)->clientName;
+            unset($user->tenantClient);
 
             return $user;
         });
@@ -56,16 +56,16 @@ class UserManagementController extends Controller
 
     public function show($id)
     {
-        $user = User::select('id', 'name', 'email', 'status', 'created_at')
+        $user = User::select('id', 'client_id', 'name', 'email', 'status', 'created_at')
             ->with([
                 'roles:id,name',
-                'client:id,user_id,clientName',
+                'tenantClient:id,clientName',
             ])
             ->findOrFail($id);
 
         $user->roles = $user->roles->pluck('name')->values();
-        $user->client_name = optional($user->client)->clientName;
-        unset($user->client);
+        $user->client_name = optional($user->tenantClient)->clientName;
+        unset($user->tenantClient);
 
         return response()->json([
             'status' => 'success',

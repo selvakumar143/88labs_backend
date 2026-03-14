@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
@@ -13,17 +15,55 @@ class DatabaseSeeder extends Seeder
         // Call Roles Seeder
         $this->call(RoleSeeder::class);
 
-        // Create Test User without factory (avoids Faker dependency in seed flow)
-        $user = User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'admin',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+        DB::transaction(function (): void {
+            $admin = User::updateOrCreate(
+                ['email' => 'admin@88labs.com'],
+                [
+                    'name' => 'Test Admin',
+                    'password' => Hash::make('paws@123'),
+                    'email_verified_at' => now(),
+                    'status' => 'active',
+                ]
+            );
+            $admin->syncRoles(['admin']);
 
-        // Assign Role to User
-        $user->assignRole('admin');
+            $clientUser = User::updateOrCreate(
+                ['email' => 'customer@88labs.com'],
+                [
+                    'name' => 'Test Client',
+                    'password' => Hash::make('paws@123'),
+                    'email_verified_at' => now(),
+                    'status' => 'active',
+                ]
+            );
+            $clientUser->syncRoles(['client_admin']);
+
+            $client = Client::updateOrCreate(
+                ['email' => 'customer@88labs.com'],
+                [
+                    'clientCode' => 'CL-TEST-0001',
+                    'clientName' => 'Test Client',
+                    'country' => 'India',
+                    'phone' => '9999999999',
+                    'clientType' => 'Agency',
+                    'niche' => 'General',
+                    'marketCountry' => 'India',
+                    'settlementMode' => 'Bank Transfer',
+                    'statementCycle' => 'Monthly',
+                    'settlementCurrency' => 'INR',
+                    'cooperationStart' => now()->toDateString(),
+                    'serviceFeePercent' => 5,
+                    'serviceFeeEffectiveTime' => now(),
+                    'enabled' => true,
+                    'primary_admin_user_id' => $clientUser->id,
+                    'admin_created_by' => $admin->id,
+                ]
+            );
+
+            $clientUser->forceFill([
+                'client_id' => $client->id,
+                'created_by' => $client->id,
+            ])->save();
+        });
     }
 }

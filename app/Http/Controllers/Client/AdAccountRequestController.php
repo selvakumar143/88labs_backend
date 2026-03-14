@@ -12,6 +12,8 @@ class AdAccountRequestController extends Controller
 {
     public function store(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $request->merge([
             'business_name' => $request->input('business_name', $request->input('company_name')),
             'platform' => $request->input('platform', $request->input('ad_platform')),
@@ -45,7 +47,7 @@ class AdAccountRequestController extends Controller
 
         $data = AdAccountRequest::create([
             'request_id' => $requestId,
-            'client_id' => Auth::id(),
+            'client_id' => $tenantOwnerUserId,
             'business_name' => $request->business_name, // 🔥 REQUIRED
             'platform' => $request->platform,
             'timezone' => $request->timezone,
@@ -68,7 +70,7 @@ class AdAccountRequestController extends Controller
             meta: [
                 'ad_account_request_id' => $data->id,
                 'request_id' => $data->request_id,
-                'client_id' => $user->id,
+                'client_id' => $tenantOwnerUserId,
                 'client_name' => $user->name,
                 'status' => $data->status,
             ]
@@ -83,10 +85,12 @@ class AdAccountRequestController extends Controller
 
     public function index()
     {
+        $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
+
         $query = AdAccountRequest::with([
                 'businessManager',
             ])
-            ->where('client_id', Auth::id());
+            ->where('client_id', $tenantOwnerUserId);
 
         if (request()->filled('status') && request()->status !== 'all') {
             $query->where('status', request()->status);
