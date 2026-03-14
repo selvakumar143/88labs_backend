@@ -70,6 +70,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Team Users (client admin)
         Route::get('/client/team-users', [TeamUserController::class, 'index']);
         Route::post('/client/team-users', [TeamUserController::class, 'store']);
+        Route::put('/client/team-users/{user}', [TeamUserController::class, 'update']);
+        Route::delete('/client/team-users/{user}', [TeamUserController::class, 'destroy']);
 
         // Ad Account
         Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);
