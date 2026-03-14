@@ -45,4 +45,13 @@ return [
         'http_timeout' => (int) env('FOREX_HTTP_TIMEOUT', 15),
     ],
 
+    'facebook_spend' => [
+        'base_url' => env('GET_SPEND_BASE_URL', 'https://graph.facebook.com/v19.0'),
+        'endpoint' => env('GET_SPEND_ENDPOINT', 'insights'),
+        'token' => env('GET_SPEND_TOKEN'),
+        'fields' => env('GET_SPEND_FIELDS', 'spend,campaign_name,adset_name,ad_name'),
+        'date_preset' => env('GET_SPEND_DATE_PRESET', 'last_month'),
+        'http_timeout' => (int) env('GET_SPEND_HTTP_TIMEOUT', 30),
+    ],
+
 ];

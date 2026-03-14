@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('forex:refresh')->hourly();
+        $schedule->command('spend:sync')->everyTwoHours();
     })
 
     ->withMiddleware(function (Middleware $middleware) {
