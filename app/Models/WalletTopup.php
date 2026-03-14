@@ -14,6 +14,7 @@ class WalletTopup extends Model
     protected $fillable = [
         'request_id',
         'client_id',
+        'sub_user_id',
         'amount',
         'request_amount',
         'service_fee',
@@ -38,6 +39,11 @@ class WalletTopup extends Model
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function creatorUser()
+    {
+        return $this->belongsTo(User::class, 'sub_user_id');
     }
 
     public function clientProfileByUserId()

@@ -8,8 +8,8 @@
         body {
             margin: 0;
             font-family: "Segoe UI", Arial, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
+            background: #334155;
+            color: #ffffff;
         }
 
         .wrap {
@@ -23,21 +23,36 @@
         .card {
             width: 100%;
             max-width: 420px;
-            background: #ffffff;
+            background: rgba(15, 23, 42, 0.92);
             border-radius: 12px;
             padding: 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+        }
+
+        .logo-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+
+        .logo {
+            display: block;
+            max-width: 100px;
+            width: 100%;
+            height: auto;
         }
 
         h1 {
             margin: 0 0 8px;
             font-size: 24px;
+            text-align: center;
         }
 
         p {
             margin: 0 0 18px;
-            color: #6b7280;
+            color: rgba(255, 255, 255, 0.82);
             font-size: 14px;
+            text-align: center;
         }
 
         label {
@@ -50,10 +65,16 @@
         input {
             width: 100%;
             box-sizing: border-box;
-            border: 1px solid #d1d5db;
+            border: 1px solid rgba(255, 255, 255, 0.22);
             border-radius: 8px;
             padding: 10px 12px;
             font-size: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .field-row {
@@ -67,7 +88,7 @@
             transform: translateY(-50%);
             border: 0;
             background: transparent;
-            color: #374151;
+            color: #ffffff;
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
@@ -84,7 +105,7 @@
             padding: 11px 14px;
             font-weight: 700;
             font-size: 14px;
-            background: #111827;
+            background: #456fff;
             color: #fff;
             cursor: pointer;
         }
@@ -95,19 +116,22 @@
             line-height: 1.4;
         }
 
-        .ok { color: #166534; }
-        .err { color: #b91c1c; }
+        .ok { color: #86efac; }
+        .err { color: #fca5a5; }
     </style>
 </head>
 <body>
     <div class="wrap">
         <div class="card">
+            <div class="logo-wrap">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="logo">
+            </div>
             <h1>{{ $formTitle ?? 'Set Your Password' }}</h1>
             <p>{{ $formSubtitle ?? 'Enter a new password and confirm it to continue.' }}</p>
 
             <form id="setPasswordForm">
                 <label for="email">Email</label>
-                <input id="email" type="email" value="{{ $email }}" required>
+                <input id="email" type="email" value="{{ $email }}" required readonly>
 
                 <label for="password">New Password</label>
                 <div class="field-row">

@@ -13,7 +13,9 @@ class TopRequestController extends Controller
     public function index(Request $request)
     {
         $query = TopRequest::with([
-            'client:id,name,email',
+            'client:id,name,email,client_id',
+            'client.tenantClient',
+            'creatorUser:id,name',
             'adAccountRequest:id,request_id,business_name,platform,status',
         ]);
 
@@ -46,9 +48,17 @@ class TopRequestController extends Controller
             });
         }
 
+        $data = $query->latest()->paginate($request->integer('per_page', 10));
+        $data->getCollection()->transform(function ($item) {
+            $item->client_id = $this->resolveClientOwnerUserId($item);
+            $item->client_name = $this->resolveClientName($item);
+            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            return $item;
+        });
+
         return response()->json([
             'status' => 'success',
-            'data' => $query->latest()->paginate($request->integer('per_page', 10)),
+            'data' => $data,
         ]);
     }
 
@@ -86,10 +96,16 @@ class TopRequestController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Top request updated.',
-            'data' => $topRequest->fresh([
-                'client:id,name,email',
+            'data' => tap($topRequest->fresh([
+                'client:id,name,email,client_id',
+                'client.tenantClient',
+                'creatorUser:id,name',
                 'adAccountRequest:id,request_id,business_name,platform,status',
-            ]),
+            ]), function ($item) {
+                $item->client_id = $this->resolveClientOwnerUserId($item);
+                $item->client_name = $this->resolveClientName($item);
+                $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            }),
         ]);
     }
 
@@ -102,5 +118,18 @@ class TopRequestController extends Controller
             'status' => 'success',
             'message' => 'Top request deleted.',
         ]);
+    }
+
+    private function resolveClientOwnerUserId(TopRequest $request): ?int
+    {
+        return optional(optional($request->client)->tenantClient)->primary_admin_user_id
+            ?? $request->client_id;
+    }
+
+    private function resolveClientName(TopRequest $request): ?string
+    {
+        return optional(optional($request->client)->tenantClient)->clientName
+            ?? optional(optional($request->client)->client)->clientName
+            ?? optional($request->client)->name;
     }
 }

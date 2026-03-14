@@ -16,8 +16,10 @@ class AdAccountRequestController extends Controller
     {
         $query = AdAccountRequest::with([
             'client.client',
+            'client.tenantClient',
             'clientProfileByUserId',
             'clientProfileByClientId',
+            'creatorUser:id,name',
             'businessManager',
         ]);
 
@@ -52,10 +54,9 @@ class AdAccountRequestController extends Controller
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_name = optional($item->clientProfileByUserId)->clientName
-                ?? optional($item->clientProfileByClientId)->clientName
-                ?? optional(optional($item->client)->client)->clientName
-                ?? optional($item->client)->name;
+            $item->client_id = $this->resolveClientOwnerUserId($item);
+            $item->client_name = $this->resolveClientName($item);
+            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
             $item->business_manager_name = optional($item->businessManager)->name;
             return $item;
         });
@@ -135,14 +136,15 @@ class AdAccountRequestController extends Controller
 
         $updatedRequest = $requestData->fresh([
             'client.client',
+            'client.tenantClient',
             'clientProfileByUserId',
             'clientProfileByClientId',
+            'creatorUser:id,name',
             'businessManager',
         ]);
-        $updatedRequest->client_name = optional($updatedRequest->clientProfileByUserId)->clientName
-            ?? optional($updatedRequest->clientProfileByClientId)->clientName
-            ?? optional(optional($updatedRequest->client)->client)->clientName
-            ?? optional($updatedRequest->client)->name;
+        $updatedRequest->client_id = $this->resolveClientOwnerUserId($updatedRequest);
+        $updatedRequest->client_name = $this->resolveClientName($updatedRequest);
+        $updatedRequest->created_by = optional($updatedRequest->creatorUser)->name ?? optional($updatedRequest->client)->name;
         $updatedRequest->business_manager_name = optional($updatedRequest->businessManager)->name;
 
         return response()->json([
@@ -150,5 +152,22 @@ class AdAccountRequestController extends Controller
             'message' => 'Request status updated.',
             'data' => $updatedRequest,
         ]);
+    }
+
+    private function resolveClientOwnerUserId(AdAccountRequest $request): ?int
+    {
+        return optional($request->clientProfileByUserId)->primary_admin_user_id
+            ?? optional($request->clientProfileByClientId)->primary_admin_user_id
+            ?? optional(optional($request->client)->tenantClient)->primary_admin_user_id
+            ?? $request->client_id;
+    }
+
+    private function resolveClientName(AdAccountRequest $request): ?string
+    {
+        return optional($request->clientProfileByUserId)->clientName
+            ?? optional($request->clientProfileByClientId)->clientName
+            ?? optional(optional($request->client)->client)->clientName
+            ?? optional(optional($request->client)->tenantClient)->clientName
+            ?? optional($request->client)->name;
     }
 }

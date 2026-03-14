@@ -12,6 +12,7 @@ class AdAccountRequest extends Model
     protected $fillable = [
         'request_id',
         'client_id',
+        'sub_user_id',
         'business_name', // 🔥 ADD THIS
         'platform',
         'timezone',
@@ -40,6 +41,11 @@ class AdAccountRequest extends Model
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function creatorUser()
+    {
+        return $this->belongsTo(User::class, 'sub_user_id');
     }
 
     public function clientProfileByUserId()

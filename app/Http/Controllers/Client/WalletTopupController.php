@@ -33,6 +33,7 @@ class WalletTopupController extends Controller
         $data = WalletTopup::create([
             'request_id' => $requestId,
             'client_id' => $tenantOwnerUserId,
+            'sub_user_id' => Auth::id(),
             "currency" => $currency,
             'amount' => $amount,
             'request_amount' => $requestAmount,
@@ -57,6 +58,16 @@ class WalletTopupController extends Controller
             ]
         );
 
+        $data->load([
+            'client.tenantClient',
+            'clientProfileByUserId',
+            'clientProfileByClientId',
+            'creatorUser:id,name',
+        ]);
+        $data->client_id = $this->resolveClientOwnerUserId($data);
+        $data->client_name = $this->resolveClientName($data);
+        $data->created_by = optional($data->creatorUser)->name ?? optional($data->client)->name;
+
         return response()->json([
             'status' => 'success',
             'message' => 'Topup request submitted',
@@ -67,15 +78,45 @@ class WalletTopupController extends Controller
     public function myRequests(Request $request)
     {
         $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
-        $query = WalletTopup::where('client_id', $tenantOwnerUserId);
+        $query = WalletTopup::with([
+            'client.tenantClient',
+            'clientProfileByUserId',
+            'clientProfileByClientId',
+            'creatorUser:id,name',
+        ])->where('client_id', $tenantOwnerUserId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
+        $data = $query->latest()->paginate($request->integer('per_page', 10));
+        $data->getCollection()->transform(function ($item) {
+            $item->client_id = $this->resolveClientOwnerUserId($item);
+            $item->client_name = $this->resolveClientName($item);
+            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            return $item;
+        });
+
         return response()->json([
             'status' => 'success',
-            'data' => $query->latest()->paginate($request->integer('per_page', 10))
+            'data' => $data
         ]);
+    }
+
+    private function resolveClientOwnerUserId(WalletTopup $topup): ?int
+    {
+        return optional($topup->clientProfileByUserId)->primary_admin_user_id
+            ?? optional($topup->clientProfileByClientId)->primary_admin_user_id
+            ?? optional(optional($topup->client)->tenantClient)->primary_admin_user_id
+            ?? $topup->client_id;
+    }
+
+    private function resolveClientName(WalletTopup $topup): ?string
+    {
+        return optional($topup->clientProfileByUserId)->clientName
+            ?? optional($topup->clientProfileByClientId)->clientName
+            ?? optional(optional($topup->client)->client)->clientName
+            ?? optional(optional($topup->client)->tenantClient)->clientName
+            ?? optional($topup->client)->name;
     }
 }
