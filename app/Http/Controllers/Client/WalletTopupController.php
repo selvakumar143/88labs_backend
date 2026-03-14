@@ -16,6 +16,7 @@ class WalletTopupController extends Controller
 
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0.01',
+            'currency' => 'required|string|size:3',
             'request_amount' => 'nullable|numeric|min:0.01|required_without:amount',
             'service_fee' => 'nullable|numeric|min:0',
             'transaction_hash' => 'required|string'
@@ -27,9 +28,11 @@ class WalletTopupController extends Controller
         $lastId = WalletTopup::max('id') + 1;
         $requestId = 'TOP-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
 
+        $currency =$validated['currency'] ; // You can modify this to accept currency from the request if needed
         $data = WalletTopup::create([
             'request_id' => $requestId,
             'client_id' => $tenantOwnerUserId,
+            "currency" => $currency,
             'amount' => $requestAmount,
             'request_amount' => $requestAmount,
             'service_fee' => $serviceFee,
