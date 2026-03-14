@@ -22,7 +22,8 @@ class WalletTopupController extends Controller
             'transaction_hash' => 'required|string'
         ]);
 
-        $requestAmount = (float) ($validated['request_amount'] ?? $validated['amount']);
+        $requestAmount = (float) ($validated['request_amount'] ?? 0 );
+        $amount = (float) ($validated['amount'] ?? 0);
         $serviceFee = round((float) ($validated['service_fee'] ?? 0), 2);
 
         $lastId = WalletTopup::max('id') + 1;
@@ -33,7 +34,7 @@ class WalletTopupController extends Controller
             'request_id' => $requestId,
             'client_id' => $tenantOwnerUserId,
             "currency" => $currency,
-            'amount' => $requestAmount,
+            'amount' => $amount,
             'request_amount' => $requestAmount,
             'service_fee' => $serviceFee,
             'transaction_hash' => $validated['transaction_hash'],
