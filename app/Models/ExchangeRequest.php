@@ -12,6 +12,7 @@ class ExchangeRequest extends Model
 
     protected $fillable = [
         'client_id',
+        'sub_user_id',
         'based_cur',
         'base_currency',
         'convertion_cur',
@@ -39,6 +40,11 @@ class ExchangeRequest extends Model
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function creatorUser()
+    {
+        return $this->belongsTo(User::class, 'sub_user_id');
     }
 
     public function clientProfileByUserId()

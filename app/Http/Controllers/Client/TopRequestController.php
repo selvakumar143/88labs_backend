@@ -29,6 +29,7 @@ class TopRequestController extends Controller
 
         $data = TopRequest::create([
             'client_id' => $tenantOwnerUserId,
+            'sub_user_id' => Auth::id(),
             'ad_account_request_id' => $validated['ad_account_request_id'],
             'amount' => $validated['amount'],
             'currency' => strtoupper($validated['currency']),
@@ -50,6 +51,15 @@ class TopRequestController extends Controller
             ]
         );
 
+        $data->load([
+            'client.tenantClient',
+            'creatorUser:id,name',
+            'adAccountRequest:id,request_id,business_name,platform,status',
+        ]);
+        $data->client_id = $this->resolveClientOwnerUserId($data);
+        $data->client_name = $this->resolveClientName($data);
+        $data->created_by = optional($data->creatorUser)->name ?? optional($data->client)->name;
+
         return response()->json([
             'status' => 'success',
             'message' => 'Top request submitted.',
@@ -61,7 +71,11 @@ class TopRequestController extends Controller
     {
         $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
 
-        $query = TopRequest::with('adAccountRequest:id,request_id,business_name,platform,status')
+        $query = TopRequest::with([
+            'client.tenantClient',
+            'creatorUser:id,name',
+            'adAccountRequest:id,request_id,business_name,platform,status',
+        ])
             ->where('client_id', $tenantOwnerUserId);
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -72,14 +86,35 @@ class TopRequestController extends Controller
             $query->where('ad_account_request_id', $request->ad_account_request_id);
         }
 
+        $data = $query->latest()->paginate($request->integer('per_page', 10));
+        $data->getCollection()->transform(function ($item) {
+            $item->client_id = $this->resolveClientOwnerUserId($item);
+            $item->client_name = $this->resolveClientName($item);
+            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            return $item;
+        });
+
         return response()->json([
             'status' => 'success',
-            'data' => $query->latest()->paginate($request->integer('per_page', 10)),
+            'data' => $data,
         ]);
     }
 
     public function myRequests(Request $request)
     {
         return $this->index($request);
+    }
+
+    private function resolveClientOwnerUserId(TopRequest $request): ?int
+    {
+        return optional(optional($request->client)->tenantClient)->primary_admin_user_id
+            ?? $request->client_id;
+    }
+
+    private function resolveClientName(TopRequest $request): ?string
+    {
+        return optional(optional($request->client)->tenantClient)->clientName
+            ?? optional(optional($request->client)->client)->clientName
+            ?? optional($request->client)->name;
     }
 }

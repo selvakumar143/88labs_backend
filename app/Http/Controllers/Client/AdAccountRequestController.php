@@ -48,6 +48,7 @@ class AdAccountRequestController extends Controller
         $data = AdAccountRequest::create([
             'request_id' => $requestId,
             'client_id' => $tenantOwnerUserId,
+            'sub_user_id' => Auth::id(),
             'business_name' => $request->business_name, // 🔥 REQUIRED
             'platform' => $request->platform,
             'timezone' => $request->timezone,
@@ -76,6 +77,19 @@ class AdAccountRequestController extends Controller
             ]
         );
 
+        $data->load([
+            'client.tenantClient',
+            'clientProfileByUserId',
+            'clientProfileByClientId',
+            'creatorUser:id,name',
+            'businessManager',
+        ]);
+        $data->client_id = $this->resolveClientOwnerUserId($data);
+        $data->client_name = $this->resolveClientName($data);
+        $data->sub_user_id = $data->sub_user_id;
+        $data->created_by = optional($data->creatorUser)->name ?? optional($data->client)->name;
+        $data->business_manager_name = optional($data->businessManager)->name;
+
         return response()->json([
             'status' => 'success',
             'message' => 'Ad account request submitted.',
@@ -88,6 +102,10 @@ class AdAccountRequestController extends Controller
         $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
 
         $query = AdAccountRequest::with([
+                'client.tenantClient',
+                'clientProfileByUserId',
+                'clientProfileByClientId',
+                'creatorUser:id,name',
                 'businessManager',
             ])
             ->where('client_id', $tenantOwnerUserId);
@@ -109,6 +127,10 @@ class AdAccountRequestController extends Controller
 
         $requests = $query->latest()->paginate(request()->integer('per_page', 10));
         $requests->getCollection()->transform(function ($item) {
+            $item->client_id = $this->resolveClientOwnerUserId($item);
+            $item->client_name = $this->resolveClientName($item);
+            $item->sub_user_id = $item->sub_user_id;
+            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
             $item->business_manager_name = optional($item->businessManager)->name;
             return $item;
         });
@@ -122,5 +144,22 @@ class AdAccountRequestController extends Controller
     public function myRequests()
     {
         return $this->index();
+    }
+
+    private function resolveClientOwnerUserId(AdAccountRequest $request): ?int
+    {
+        return optional($request->clientProfileByUserId)->primary_admin_user_id
+            ?? optional($request->clientProfileByClientId)->primary_admin_user_id
+            ?? optional(optional($request->client)->tenantClient)->primary_admin_user_id
+            ?? $request->client_id;
+    }
+
+    private function resolveClientName(AdAccountRequest $request): ?string
+    {
+        return optional($request->clientProfileByUserId)->clientName
+            ?? optional($request->clientProfileByClientId)->clientName
+            ?? optional(optional($request->client)->client)->clientName
+            ?? optional(optional($request->client)->tenantClient)->clientName
+            ?? optional($request->client)->name;
     }
 }
