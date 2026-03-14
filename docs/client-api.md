@@ -23,6 +23,19 @@ This document covers customer/client-facing endpoints from `routes/api.php`.
 
 ## Protected Client Endpoints
 
+### Team Users
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/client/team-users` | List team users for the current client |
+| POST | `/client/team-users` | Create a team user such as `client_manager` |
+| PUT | `/client/team-users/{user}` | Update a team user |
+| DELETE | `/client/team-users/{user}` | Delete a team user |
+
+Notes:
+- These endpoints are intended for `client_admin` users for their own client tenant.
+- The primary client admin account cannot be updated or deleted through this flow.
+
 ### Common Endpoint (Available after login)
 
 | Method | Endpoint | Description |
