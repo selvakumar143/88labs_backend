@@ -13,12 +13,14 @@ class TopRequestController extends Controller
 {
     public function store(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $validated = $request->validate([
             'ad_account_request_id' => [
                 'required',
                 'integer',
-                Rule::exists('ad_account_requests', 'id')->where(function ($query) {
-                    $query->where('client_id', Auth::id());
+                Rule::exists('ad_account_requests', 'id')->where(function ($query) use ($tenantOwnerUserId) {
+                    $query->where('client_id', $tenantOwnerUserId);
                 }),
             ],
             'amount' => 'required|numeric|min:0.01',
@@ -26,7 +28,7 @@ class TopRequestController extends Controller
         ]);
 
         $data = TopRequest::create([
-            'client_id' => Auth::id(),
+            'client_id' => $tenantOwnerUserId,
             'ad_account_request_id' => $validated['ad_account_request_id'],
             'amount' => $validated['amount'],
             'currency' => strtoupper($validated['currency']),
@@ -39,7 +41,7 @@ class TopRequestController extends Controller
             message: Auth::user()->name . " submitted topup request #{$data->id}.",
             meta: [
                 'top_request_id' => $data->id,
-                'client_id' => Auth::id(),
+                'client_id' => $tenantOwnerUserId,
                 'client_name' => Auth::user()->name,
                 'ad_account_request_id' => $data->ad_account_request_id,
                 'amount' => $data->amount,
@@ -57,8 +59,10 @@ class TopRequestController extends Controller
 
     public function index(Request $request)
     {
+        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+
         $query = TopRequest::with('adAccountRequest:id,request_id,business_name,platform,status')
-            ->where('client_id', Auth::id());
+            ->where('client_id', $tenantOwnerUserId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);

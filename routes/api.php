@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ExchangeRequestController as AdminExchangeRequest
 use App\Http\Controllers\Client\TransactionController as ClientTransactionController;
 use App\Http\Controllers\Client\TransactionInvoiceController as ClientTransactionInvoiceController;
 use App\Http\Controllers\Client\ClientProfileController;
+use App\Http\Controllers\Client\TeamUserController;
 use App\Http\Controllers\Admin\AccountManagementController as AdminAccountMgmt;
 use App\Http\Controllers\Admin\BusinessManagerController as AdminBusinessManager;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -62,9 +63,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     | CUSTOMER ROUTES
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['role:customer|Customer,sanctum'])->group(function () {
+    Route::middleware(['role:customer|Customer|client_admin|client_manager|client_viewer,sanctum', 'tenant.client'])->group(function () {
 
-    Route::put('/customer/update-profile', [CustomerAuthController::class, 'updateProfile']);
+        Route::put('/customer/update-profile', [CustomerAuthController::class, 'updateProfile']);
+
+        // Team Users (client admin)
+        Route::get('/client/team-users', [TeamUserController::class, 'index']);
+        Route::post('/client/team-users', [TeamUserController::class, 'store']);
 
         // Ad Account
         Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);

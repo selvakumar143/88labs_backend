@@ -9,7 +9,6 @@ use App\Models\WalletTopup;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -179,8 +178,12 @@ class TransactionController extends Controller
 
     protected function walletTransactions(array $filters): Collection
     {
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $query = WalletTopup::with(['client'])
-            ->where('client_id', Auth::id());
+            ->where('client_id', $tenantOwnerUserId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -238,11 +241,15 @@ class TransactionController extends Controller
 
     protected function accountTopupTransactions(array $filters): Collection
     {
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $query = TopRequest::with([
             'client:id,name',
             'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-        ])->where('client_id', Auth::id());
+        ])->where('client_id', $tenantOwnerUserId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -300,8 +307,12 @@ class TransactionController extends Controller
             return collect();
         }
 
+        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
+            ? (int) app('currentClientOwnerUserId')
+            : (int) auth()->id();
+
         $query = DB::table('exchange_requests')
-            ->where('client_id', Auth::id());
+            ->where('client_id', $tenantOwnerUserId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('exchange_requests', 'status')) {
             $query->where('status', $filters['status']);

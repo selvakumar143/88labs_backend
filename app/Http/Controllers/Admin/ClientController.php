@@ -54,6 +54,7 @@ class ClientController extends Controller
         DB::beginTransaction();
 
         try {
+            $creatorAdminId = optional($request->user())->id;
 
             // create user WITHOUT password
             $user = User::create([
@@ -62,8 +63,6 @@ class ClientController extends Controller
                 'password' => null,
                 'email_verified_at' => null,
             ]);
-
-            $user->assignRole('customer');
 
             $client = Client::create([
                 'clientCode' => $request->clientCode,
@@ -81,8 +80,16 @@ class ClientController extends Controller
                 'serviceFeePercent' => $request->serviceFeePercent,
                 'serviceFeeEffectiveTime' => $request->serviceFeeEffectiveTime,
                 'enabled' => false,
-                'user_id' => $user->id,
+                'admin_created_by' => $creatorAdminId,
+                'primary_admin_user_id' => $user->id,
             ]);
+
+            $user->update([
+                'client_id' => $client->id,
+                'created_by' => $client->id,
+            ]);
+
+            $user->assignRole('client_admin');
 
             if (blank($client->clientCode)) {
                 $client->clientCode = 'CL-'.str_pad((string) $client->id, 4, '0', STR_PAD_LEFT);
@@ -174,7 +181,7 @@ class ClientController extends Controller
             'email' => [
                 'sometimes',
                 'email',
-                Rule::unique('users', 'email')->ignore($client->user_id),
+                Rule::unique('users', 'email')->ignore($client->primary_admin_user_id),
             ],
             'country' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:255',
@@ -272,10 +279,13 @@ class ClientController extends Controller
                 $user->email_verified_at = now();
                 $user->save();
 
-                // activate client
-                $user->client->update([
-                    'enabled' => true
-                ]);
+                // Activate tenant only when this user is the primary client owner.
+                $ownedClient = $user->client()->first();
+                if ($ownedClient && !$ownedClient->enabled) {
+                    $ownedClient->update([
+                        'enabled' => true
+                    ]);
+                }
             }
         );
 
