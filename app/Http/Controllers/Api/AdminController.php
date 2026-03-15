@@ -20,7 +20,7 @@ class AdminController extends Controller
      */
     public function index()
     {
-        $totalOnboarded = AdAccountRequest::where('status', 'approved')->count();
+        $totalOnboarded = Client::where('enabled', true)->count();
         $pendingApprovals = WalletTopup::where('status', 'pending')->count();
         $needReview = AdAccountRequest::where('status', 'pending')->count();
         $totalSpends = (float) TopRequest::where('status', TopRequest::STATUS_APPROVED)->sum('amount');
