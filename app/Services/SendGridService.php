@@ -2,34 +2,44 @@
 
 namespace App\Services;
 
-use SendGrid\Mail\Mail;
-use SendGrid;
+use App\Mail\DynamicTemplateMail;
+use Illuminate\Support\Facades\Mail;
 
 class SendGridService
 {
-    public static function sendMail($to, $subject, $contentText, $contentHtml = null)
+    public static function sendMail(
+        string $to,
+        string $subject,
+        string $contentText,
+        ?string $contentHtml = null,
+        array $templateData = []
+    ): array
     {
-        $email = new Mail();
-        $email->setFrom(env('SENDGRID_FROM_EMAIL'), "88Labs");
-        $email->setSubject($subject);
-        $email->addTo($to);
-        $email->addContent("text/plain", $contentText);
-        if ($contentHtml) {
-            $email->addContent("text/html", $contentHtml);
-        }
-
-        $sendgrid = new SendGrid(env('SENDGRID_API_KEY'));
+        $resolvedTemplateData = self::buildTemplateData($subject, $contentText, $templateData);
 
         try {
-            $response = $sendgrid->send($email);
+            Mail::to($to)->send(new DynamicTemplateMail($subject, $resolvedTemplateData));
+
             return [
-                "status" => $response->statusCode(),
-                "body" => $response->body()
+                'status' => 200,
+                'body' => 'Mail sent successfully.',
             ];
         } catch (\Exception $e) {
             return [
-                "error" => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
+    }
+
+    protected static function buildTemplateData(string $subject, string $contentText, array $templateData): array
+    {
+        $textLines = preg_split('/\r\n|\r|\n/', $contentText) ?: [];
+        $textLines = array_values(array_filter(array_map('trim', $textLines), static fn ($line) => $line !== ''));
+
+        return array_merge([
+            'heading' => $subject,
+            'lines' => $textLines,
+            'footer_lines' => [],
+        ], $templateData);
     }
 }

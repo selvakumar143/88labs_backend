@@ -74,6 +74,138 @@ https://sel:_NsLeKRt84PkAPSmJ1w1QJAw9ykQs0P2p9gxr@github.com/selvakumar143/88lab
 - Admin APIs: `docs/admin-api.md`
 - Notifications API: `docs/notifications-api.md`
 
+## Scheduled Jobs
+
+This project uses Laravel's scheduler in [bootstrap/app.php](/var/www/html/siva/88labs_backend/bootstrap/app.php).
+
+Current scheduled tasks:
+- `forex:refresh` runs hourly
+- `spend:sync` runs every 2 hours
+
+Important:
+- You do not need one cron entry per API or per scheduled command.
+- Laravel only needs one system cron entry, and Laravel itself decides which scheduled tasks are due.
+
+Use this cron entry on the server:
+
+```bash
+* * * * * php /var/www/html/siva/88labs_backend/artisan schedule:run >> /dev/null 2>&1
+```
+
+Queue worker is also required because `spend:sync` dispatches queued jobs:
+
+```bash
+php artisan queue:work
+```
+
+## Testing FetchAdAccountSpendJob Locally
+
+### Prerequisites
+
+- `QUEUE_CONNECTION=database` in `.env`
+- valid `GET_SPEND_TOKEN` in `.env`
+- spend env config present:
+
+```env
+GET_SPEND_BASE_URL=https://graph.facebook.com/v19.0
+GET_SPEND_ENDPOINT=insights
+GET_SPEND_FIELDS=spend,campaign_name,adset_name,ad_name
+GET_SPEND_DATE_PRESET=last_month
+GET_SPEND_HTTP_TIMEOUT=30
+GET_SPEND_TOKEN=your_facebook_token
+```
+
+- at least one row in `ad_account_requests` with a real non-empty `account_id`
+- jobs and failed jobs tables migrated
+- `get_spend_data` table migrated
+
+### 1. Run Migrations
+
+```bash
+php artisan migrate
+```
+
+### 2. Clear Cached Config
+
+Do this after changing `.env` or job code:
+
+```bash
+php artisan optimize:clear
+```
+
+### 3. Start Queue Worker
+
+```bash
+php artisan queue:work
+```
+
+### 4. Dispatch Spend Jobs Manually
+
+This reads all distinct `client_id` + `account_id` pairs from `ad_account_requests` and dispatches one job per pair:
+
+```bash
+php artisan spend:sync
+```
+
+### 5. Watch Logs
+
+```bash
+tail -f storage/logs/laravel.log
+```
+
+Useful log entries:
+- `Starting Facebook spend fetch.`
+- `Facebook spend request URL.`
+- `Facebook spend response received.`
+- `Facebook spend response returned no rows.`
+- `Finished Facebook spend fetch.`
+
+### 6. Check Saved Spend Data
+
+Using Tinker:
+
+```bash
+php artisan tinker
+```
+
+```php
+App\Models\GetSpendData::latest()->take(10)->get();
+```
+
+Or query the database directly:
+
+```sql
+select * from get_spend_data order by id desc limit 10;
+```
+
+### 7. Run One Job Synchronously for Debugging
+
+If you want to bypass the queue worker and test one account directly:
+
+```bash
+php artisan tinker
+```
+
+```php
+$ad = App\Models\AdAccountRequest::whereNotNull('account_id')->where('account_id', '!=', '')->first();
+App\Jobs\FetchAdAccountSpendJob::dispatchSync($ad->client_id, $ad->account_id);
+```
+
+### Notes
+
+- If Facebook returns `{"data":[]}`, the job is working but there is no spend data for that account and date range.
+- If you update the job code, restart the worker:
+
+```bash
+php artisan queue:restart
+```
+
+- Then start the worker again:
+
+```bash
+php artisan queue:work
+```
+
 ## Create User API
 
 ### Endpoint
@@ -724,5 +856,4 @@ echo $! > storage/artisan-serve.pid
 Cmd to instll for mail 
 composer require symfony/sendgrid-mailer
 composer require symfony/http-client
-
 

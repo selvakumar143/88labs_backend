@@ -46,6 +46,7 @@ Route::post('/password/reset', [PasswordController::class, 'resetFromLink']);
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 Route::post('/admin/password', [AdminAuthController::class, 'passwordHandler']);
 Route::get('/sent-mail', [ServiceController::class, 'sendTestMail']);
+Route::post('/send-mail', [ServiceController::class, 'sendDynamicMail']);
 
 /*
 |--------------------------------------------------------------------------
