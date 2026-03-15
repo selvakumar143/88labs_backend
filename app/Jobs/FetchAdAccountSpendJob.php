@@ -31,6 +31,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
         $fields = (string) config('services.facebook_spend.fields', 'spend,campaign_name,adset_name,ad_name');
         $datePreset = (string) config('services.facebook_spend.date_preset', 'last_month');
         $timeout = (int) config('services.facebook_spend.http_timeout', 30);
+        $time_increment = (string) config('services.facebook_spend.time_increment', 'monthly');
 
         if ($baseUrl === '' || $token === '' || $this->accountId === '') {
             Log::warning('Skipping spend fetch because config or account_id is missing.', [
@@ -40,7 +41,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
             return;
         }
 
-        $url = "{$baseUrl}/{$this->accountId}/{$endpoint}";
+        $url = "{$baseUrl}/act_{$this->accountId}/{$endpoint}";
         $isFirstRequest = true;
         $insertedRows = 0;
 
@@ -51,6 +52,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
             'endpoint' => $endpoint,
             'fields' => $fields,
             'date_preset' => $datePreset,
+            'time_increment' => $time_increment
         ]);
 
         while ($url) {
@@ -60,6 +62,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
                     'fields' => $fields,
                     'date_preset' => $datePreset,
                     'access_token' => $token,
+                    'time_increment' => $time_increment,
                 ])
                 : $request->get($url);
 

@@ -51,6 +51,7 @@ return [
         'token' => env('GET_SPEND_TOKEN'),
         'fields' => env('GET_SPEND_FIELDS', 'spend,campaign_name,adset_name,ad_name'),
         'date_preset' => env('GET_SPEND_DATE_PRESET', 'last_month'),
+        'time_increment' => env('GET_SPEND_TIME_INCREMENT', 'monthly'),
         'http_timeout' => (int) env('GET_SPEND_HTTP_TIMEOUT', 30),
     ],
 

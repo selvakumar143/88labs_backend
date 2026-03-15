@@ -11,6 +11,7 @@ use App\Models\WalletTopup;
 use App\Models\AdAccountRequest;
 use App\Models\ExchangeRequest;
 use App\Models\TopRequest;
+use App\Models\GetSpendData;
 
 class ClientDashboardController extends Controller
 {
@@ -164,6 +165,8 @@ class ClientDashboardController extends Controller
     public function dashboard(Request $request)
     {
         $clientId = (int) $request->attributes->get('current_client_owner_user_id');
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
         $year = (int) $request->input('year', now()->year);
 
         $walletBalances = $this->getWalletBalances($clientId);
@@ -220,6 +223,7 @@ class ClientDashboardController extends Controller
             });
 
         $totalActiveAdsAccount = $this->getTotalActiveAdsAccount($clientId);
+        $totalSpendTrend = $this->GetSpendsTrend($clientId, $startDate, $endDate);
     
         /*
         |--------------------------------------------------------------------------
@@ -237,7 +241,8 @@ class ClientDashboardController extends Controller
                     'total_active_ads_account' => (int) $totalActiveAdsAccount,
                 ],
                 'monthly_topups' => $monthlyData,
-                'recent_topups' => $recentTopups
+                'recent_topups' => $recentTopups,
+                'totalSpendTrend' => $totalSpendTrend,
             ]
         ]);
     }
@@ -289,5 +294,28 @@ class ClientDashboardController extends Controller
                 'total_active_ads_account' => $totalActiveAdsAccount,
             ],
         ]);
+    }
+
+    public function GetSpendsTrend($clientId='',$startDate,$endDate)
+    {
+
+        $query = GetSpendData::query();
+
+        $query->where('client_id', $clientId);
+
+        if (!empty($startDate)) {
+            $query->whereDate('date_start', '>=', $startDate);
+        }
+
+        if (!empty($endDate)) {
+            $query->whereDate('date_stop', '<=', $endDate);
+        }
+
+        $perPage = 20;
+
+        $items = $query
+            ->orderByDesc('date_start')->get();
+            
+        return $items;
     }
 }
