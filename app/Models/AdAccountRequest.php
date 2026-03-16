@@ -18,6 +18,7 @@ class AdAccountRequest extends Model
         'timezone',
         'market_country',
         'currency',
+        'vcc_provider',
         'business_manager_id',
         'account_name',
         'account_preference',

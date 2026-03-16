@@ -38,6 +38,7 @@ class AdminController extends Controller
             ->whereDate('approved_at', Carbon::today())
             ->sum('amount');
         $averageServiceFee = '3.8%';
+        $totalSpendTrend = $this->GetSpendsTrend();
 
         return response()->json([
             'total_onboarded' => $totalOnboarded,
@@ -51,6 +52,30 @@ class AdminController extends Controller
             'new_clients_added' => $newClientsAdded,
             'approved_topups' => $approvedTopups,
             'average_service_fee' => $averageServiceFee,
+            'total_spend_trend' => $totalSpendTrend,
         ]);
+    }
+
+
+     public function GetSpendsTrend()
+    {
+
+        $startDate = Carbon::today()->subMonths(10)->toDateString();
+        $endDate = Carbon::today()->toDateString();
+
+        $query = GetSpendData::query();
+
+        if (!empty($startDate)) {
+            $query->whereDate('date_start', '>=', $startDate);
+        }
+
+        if (!empty($endDate)) {
+            $query->whereDate('date_stop', '<=', $endDate);
+        }
+
+        $items = $query
+            ->orderByDesc('date_start')->get();
+            
+        return $items;
     }
 }

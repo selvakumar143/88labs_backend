@@ -8,8 +8,6 @@ class BusinessManager extends Model
 {
     protected $fillable = [
         'name',
-        'mail',
-        'contact',
         'status',
     ];
 

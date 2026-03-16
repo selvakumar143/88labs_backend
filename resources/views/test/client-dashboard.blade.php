@@ -50,6 +50,7 @@ input, select, textarea { width:100%; padding:8px; margin:5px 0;}
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
         </select>
+        <input name="vcc_provider" placeholder="VCC Provider">
         <input name="business_manager_id" placeholder="Business Manager ID" required>
         <input name="website_url" placeholder="Website URL" required>
         <input name="account_type" placeholder="Account Type" required>

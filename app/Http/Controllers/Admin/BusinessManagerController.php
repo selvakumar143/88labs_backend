@@ -17,8 +17,7 @@ class BusinessManagerController extends Controller
             $search = $request->string('search')->trim();
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('mail', 'like', "%{$search}%")
-                    ->orWhere('contact', 'like', "%{$search}%");
+                    ->orWhere('status', 'like', "%{$search}%");
             });
         }
 
@@ -46,8 +45,6 @@ class BusinessManagerController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'mail' => ['required', 'email', 'max:255', 'unique:business_managers,mail'],
-            'contact' => ['required', 'string', 'max:50'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
         ]);
 
@@ -67,13 +64,6 @@ class BusinessManagerController extends Controller
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'mail' => [
-                'sometimes',
-                'email',
-                'max:255',
-                Rule::unique('business_managers', 'mail')->ignore($businessManager->id),
-            ],
-            'contact' => ['sometimes', 'string', 'max:50'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
         ]);
 

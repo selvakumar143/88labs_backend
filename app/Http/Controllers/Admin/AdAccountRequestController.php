@@ -40,11 +40,17 @@ class AdAccountRequestController extends Controller
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('request_id', 'like', "%{$request->search}%")
+                  ->orWhere('account_id', 'like', "%{$request->search}%")
+                  ->orWhere('account_name', 'like', "%{$request->search}%")
+                  ->orWhere('vcc_provider', 'like', "%{$request->search}%")
                   ->orWhereHas('client', function ($sub) use ($request) {
                       $sub->where('name', 'like', "%{$request->search}%");
                   })
                   ->orWhereHas('client.client', function ($sub) use ($request) {
                       $sub->where('clientName', 'like', "%{$request->search}%");
+                  })
+                  ->orWhereHas('businessManager', function ($sub) use ($request) {
+                      $sub->where('name', 'like', "%{$request->search}%");
                   })
                   ->orWhereHas('clientProfileByClientId', function ($sub) use ($request) {
                       $sub->where('clientName', 'like', "%{$request->search}%");
@@ -76,7 +82,9 @@ class AdAccountRequestController extends Controller
                 AdAccountRequest::STATUS_PENDING,
             ])],
             'business_manager_id' => ['sometimes', 'nullable', 'exists:business_managers,id'],
+            'vcc_provider' => ['sometimes', 'nullable', 'string', 'max:255'],
             'account_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'additional_notes' => ['sometimes', 'nullable', 'string', 'max:255'],
             'account_preference' => ['sometimes', 'nullable', 'string', 'max:255'],
             'account_id' => ['sometimes', 'nullable', 'string', 'max:255'],
             'card_type' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -95,6 +103,10 @@ class AdAccountRequestController extends Controller
 
             if (array_key_exists('business_manager_id', $validated)) {
                 $updateData['business_manager_id'] = $validated['business_manager_id'];
+            }
+
+            if (array_key_exists('vcc_provider', $validated)) {
+                $updateData['vcc_provider'] = $validated['vcc_provider'];
             }
 
             if (array_key_exists('account_name', $validated)) {
@@ -116,7 +128,10 @@ class AdAccountRequestController extends Controller
             if (array_key_exists('card_number', $validated)) {
                 $updateData['card_number'] = $validated['card_number'];
             }
-
+         
+            if (array_key_exists('additional_notes', $validated)) {
+                $updateData['additional_notes'] = $validated['additional_notes'];
+            }
             $requestData->update($updateData);
         });
 
