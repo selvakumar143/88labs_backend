@@ -189,6 +189,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Admin Dashboard
         Route::get('/admin', [AdminController::class, 'index']);
         Route::get('/admin/spend-data', [AdminSpendDataController::class, 'index']);
+        Route::get('/admin/client-spend-summary', [AdminSpendDataController::class, 'clientSummary']);
 
         // Notifications
         Route::get('/admin/notifications/unread-count', [NotificationController::class, 'unreadCount']);

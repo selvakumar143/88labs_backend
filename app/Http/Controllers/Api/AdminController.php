@@ -37,7 +37,8 @@ class AdminController extends Controller
         $approvedTopups = (float) WalletTopup::where('status', WalletTopup::STATUS_APPROVED)
             ->whereDate('approved_at', Carbon::today())
             ->sum('amount');
-        $averageServiceFee = '3.8%';
+        $averageServiceFeeValue = (float) Client::whereNotNull('serviceFeePercent')->avg('serviceFeePercent');
+        $averageServiceFee = number_format($averageServiceFeeValue, 2) . '%';
         $totalSpendTrend = $this->GetSpendsTrend();
 
         return response()->json([
