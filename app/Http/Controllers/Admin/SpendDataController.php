@@ -153,6 +153,115 @@ class SpendDataController extends Controller
             ->orderBy('account_name')
             ->get();
 
+        $totalsQuery = DB::table('get_spend_data as g')
+            ->leftJoin('clients as c', 'c.id', '=', 'g.client_id')
+            ->leftJoin('ad_account_requests as aar', function ($join) {
+                $join->on('aar.account_id', '=', 'g.account_id')
+                    ->on('aar.client_id', '=', 'g.client_id');
+            })
+            ->leftJoin('business_managers as bm', 'bm.id', '=', 'aar.business_manager_id');
+
+        if (!empty($validated['client_id']) && $validated['client_id'] !== 'all') {
+            $totalsQuery->where('g.client_id', $validated['client_id']);
+        }
+
+        if (!empty($validated['client_name'])) {
+            $clientName = trim((string) $validated['client_name']);
+            $totalsQuery->where('c.clientName', 'like', "%{$clientName}%");
+        }
+
+        if (!empty($validated['business_name'])) {
+            $businessName = trim((string) $validated['business_name']);
+            $totalsQuery->where('aar.business_name', 'like', "%{$businessName}%");
+        }
+
+        if (!empty($validated['account_name'])) {
+            $accountName = trim((string) $validated['account_name']);
+            $totalsQuery->where('aar.account_name', 'like', "%{$accountName}%");
+        }
+
+        if (!empty($validated['account_id']) && $validated['account_id'] !== 'all') {
+            $totalsQuery->where('g.account_id', $validated['account_id']);
+        }
+
+        if (!empty($validated['search'])) {
+            $search = trim((string) $validated['search']);
+            $totalsQuery->where(function ($q) use ($search) {
+                $q->orWhere('g.client_id', 'like', "%{$search}%")
+                    ->orWhere('c.clientName', 'like', "%{$search}%")
+                    ->orWhere('g.account_id', 'like', "%{$search}%")
+                    ->orWhere('aar.account_name', 'like', "%{$search}%")
+                    ->orWhere('bm.id', 'like', "%{$search}%")
+                    ->orWhere('bm.name', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($validated['date_start'])) {
+            $totalsQuery->whereDate('g.date_start', '>=', $validated['date_start']);
+        }
+
+        if (!empty($validated['date_end'])) {
+            $totalsQuery->whereDate('g.date_stop', '<=', $validated['date_end']);
+        }
+
+        $spendTotals = $totalsQuery->select([
+            DB::raw('COUNT(*) as total_transactions'),
+            DB::raw('ROUND(COALESCE(SUM(g.spend), 0), 2) as total_spend'),
+        ])->first();
+
+        $totalClients = DB::table('clients as c')
+            ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('c.id', $validated['client_id']);
+            })
+            ->when(!empty($validated['client_name']), function ($query) use ($validated) {
+                $clientName = trim((string) $validated['client_name']);
+                $query->where('c.clientName', 'like', "%{$clientName}%");
+            })
+            ->when(!empty($validated['search']), function ($query) use ($validated) {
+                $search = trim((string) $validated['search']);
+                $query->where(function ($q) use ($search) {
+                    $q->orWhere('c.id', 'like', "%{$search}%")
+                        ->orWhere('c.clientName', 'like', "%{$search}%");
+                });
+            })
+            ->distinct('c.id')
+            ->count('c.id');
+
+        $totalAccounts = DB::table('ad_account_requests as aar')
+            ->leftJoin('clients as c', 'c.id', '=', 'aar.client_id')
+            ->leftJoin('business_managers as bm', 'bm.id', '=', 'aar.business_manager_id')
+            ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('aar.client_id', $validated['client_id']);
+            })
+            ->when(!empty($validated['client_name']), function ($query) use ($validated) {
+                $clientName = trim((string) $validated['client_name']);
+                $query->where('c.clientName', 'like', "%{$clientName}%");
+            })
+            ->when(!empty($validated['business_name']), function ($query) use ($validated) {
+                $businessName = trim((string) $validated['business_name']);
+                $query->where('aar.business_name', 'like', "%{$businessName}%");
+            })
+            ->when(!empty($validated['account_name']), function ($query) use ($validated) {
+                $accountName = trim((string) $validated['account_name']);
+                $query->where('aar.account_name', 'like', "%{$accountName}%");
+            })
+            ->when(!empty($validated['account_id']) && $validated['account_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('aar.account_id', $validated['account_id']);
+            })
+            ->when(!empty($validated['search']), function ($query) use ($validated) {
+                $search = trim((string) $validated['search']);
+                $query->where(function ($q) use ($search) {
+                    $q->orWhere('aar.client_id', 'like', "%{$search}%")
+                        ->orWhere('c.clientName', 'like', "%{$search}%")
+                        ->orWhere('aar.account_id', 'like', "%{$search}%")
+                        ->orWhere('aar.account_name', 'like', "%{$search}%")
+                        ->orWhere('bm.id', 'like', "%{$search}%")
+                        ->orWhere('bm.name', 'like', "%{$search}%");
+                });
+            })
+            ->distinct('aar.account_id')
+            ->count('aar.account_id');
+
         return response()->json([
             'status' => 'success',
             'data' => $items,
@@ -160,6 +269,12 @@ class SpendDataController extends Controller
                 'clients' => $clients,
                 'business_managers' => $businessManagers,
                 'accounts' => $accounts,
+            ],
+            'totals' => [
+                'total_clients' => (int) ($totalClients ?? 0),
+                'total_accounts' => (int) ($totalAccounts ?? 0),
+                'total_spend' => (float) ($spendTotals->total_spend ?? 0),
+                'total_transactions' => (int) ($spendTotals->total_transactions ?? 0),
             ],
         ]);
     }
@@ -209,6 +324,21 @@ class SpendDataController extends Controller
             ->orderByDesc('total_spending')
             ->paginate($perPage);
 
+        $totalsRow = DB::table('clients as c')
+            ->leftJoinSub($spendQuery, 'spend', function ($join) {
+                $join->on('c.id', '=', 'spend.client_id');
+            })
+            ->leftJoin('users as u', 'u.id', '=', 'c.primary_admin_user_id')
+            ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('c.id', $validated['client_id']);
+            })
+            ->select([
+                DB::raw('COUNT(DISTINCT c.id) as total_clients'),
+                DB::raw('ROUND(COALESCE(SUM(spend.total_spend), 0), 2) as total_spend'),
+                DB::raw('ROUND(SUM(COALESCE(spend.total_spend, 0) * COALESCE(c.serviceFeePercent, 0) / 100), 2) as total_profit'),
+            ])
+            ->first();
+
         $clients = DB::table('clients')
             ->select([
                 'id as client_id',
@@ -222,6 +352,11 @@ class SpendDataController extends Controller
             'data' => [
                 'summary' => $summary,
                 'clients' => $clients,
+                'totals' => [
+                    'total_clients' => (int) ($totalsRow->total_clients ?? 0),
+                    'total_spend' => (float) ($totalsRow->total_spend ?? 0),
+                    'total_profit' => (float) ($totalsRow->total_profit ?? 0),
+                ],
             ],
         ]);
     }
