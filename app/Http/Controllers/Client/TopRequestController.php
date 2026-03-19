@@ -13,14 +13,14 @@ class TopRequestController extends Controller
 {
     public function store(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         $validated = $request->validate([
             'ad_account_request_id' => [
                 'required',
                 'integer',
-                Rule::exists('ad_account_requests', 'id')->where(function ($query) use ($tenantOwnerUserId) {
-                    $query->where('client_id', $tenantOwnerUserId);
+                Rule::exists('ad_account_requests', 'id')->where(function ($query) use ($clientId) {
+                    $query->where('client_id', $clientId);
                 }),
             ],
             'amount' => 'required|numeric|min:0.01',
@@ -28,7 +28,7 @@ class TopRequestController extends Controller
         ]);
 
         $data = TopRequest::create([
-            'client_id' => $tenantOwnerUserId,
+            'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
             'ad_account_request_id' => $validated['ad_account_request_id'],
             'amount' => $validated['amount'],
@@ -42,7 +42,7 @@ class TopRequestController extends Controller
             message: Auth::user()->name . " submitted topup request #{$data->id}.",
             meta: [
                 'top_request_id' => $data->id,
-                'client_id' => $tenantOwnerUserId,
+                'client_id' => $clientId,
                 'client_name' => Auth::user()->name,
                 'ad_account_request_id' => $data->ad_account_request_id,
                 'amount' => $data->amount,
@@ -52,13 +52,14 @@ class TopRequestController extends Controller
         );
 
         $data->load([
-            'client.tenantClient',
+            'client.primaryAdmin:id,name',
             'creatorUser:id,name',
             'adAccountRequest:id,request_id,business_name,platform,status',
         ]);
-        $data->client_id = $this->resolveClientOwnerUserId($data);
         $data->client_name = $this->resolveClientName($data);
-        $data->created_by = optional($data->creatorUser)->name ?? optional($data->client)->name;
+        $data->created_by = optional($data->creatorUser)->name
+            ?? optional(optional($data->client)->primaryAdmin)->name
+            ?? $data->client_name;
 
         return response()->json([
             'status' => 'success',
@@ -69,14 +70,14 @@ class TopRequestController extends Controller
 
     public function index(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         $query = TopRequest::with([
-            'client.tenantClient',
+            'client.primaryAdmin:id,name',
             'creatorUser:id,name',
             'adAccountRequest:id,request_id,business_name,platform,status',
         ])
-            ->where('client_id', $tenantOwnerUserId);
+            ->where('client_id', $clientId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -88,9 +89,10 @@ class TopRequestController extends Controller
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             return $item;
         });
 
@@ -105,16 +107,10 @@ class TopRequestController extends Controller
         return $this->index($request);
     }
 
-    private function resolveClientOwnerUserId(TopRequest $request): ?int
-    {
-        return optional(optional($request->client)->tenantClient)->primary_admin_user_id
-            ?? $request->client_id;
-    }
-
     private function resolveClientName(TopRequest $request): ?string
     {
-        return optional(optional($request->client)->tenantClient)->clientName
-            ?? optional(optional($request->client)->client)->clientName
-            ?? optional($request->client)->name;
+        return data_get($request, 'client.clientName')
+            ?? data_get($request, 'client.client_name')
+            ?? data_get($request, 'client.name');
     }
 }

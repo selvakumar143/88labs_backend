@@ -13,8 +13,7 @@ class TopRequestController extends Controller
     public function index(Request $request)
     {
         $query = TopRequest::with([
-            'client:id,name,email,client_id',
-            'client.tenantClient',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
             'adAccountRequest:id,request_id,business_name,platform,status',
         ]);
@@ -37,7 +36,8 @@ class TopRequestController extends Controller
                 $q->where('amount', 'like', "%{$search}%")
                     ->orWhere('currency', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
-                        $sub->where('name', 'like', "%{$search}%")
+                        $sub->where('clientName', 'like', "%{$search}%")
+                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
                     })
                     ->orWhereHas('adAccountRequest', function ($sub) use ($search) {
@@ -50,9 +50,10 @@ class TopRequestController extends Controller
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             return $item;
         });
 
@@ -79,7 +80,7 @@ class TopRequestController extends Controller
 
         if ($previousStatus !== $validated['status']) {
             NotificationDispatcher::notifyClient(
-                client: $topRequest->client,
+                client: optional($topRequest->client)->primaryAdmin,
                 eventType: 'top_request_status_updated',
                 title: 'Topup Request Updated',
                 message: "Your topup request #{$topRequest->id} is {$validated['status']}.",
@@ -97,14 +98,14 @@ class TopRequestController extends Controller
             'status' => 'success',
             'message' => 'Top request updated.',
             'data' => tap($topRequest->fresh([
-                'client:id,name,email,client_id',
-                'client.tenantClient',
+                'client.primaryAdmin:id,name,email',
                 'creatorUser:id,name',
                 'adAccountRequest:id,request_id,business_name,platform,status',
             ]), function ($item) {
-                $item->client_id = $this->resolveClientOwnerUserId($item);
                 $item->client_name = $this->resolveClientName($item);
-                $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+                $item->created_by = optional($item->creatorUser)->name
+                    ?? optional(optional($item->client)->primaryAdmin)->name
+                    ?? $item->client_name;
             }),
         ]);
     }
@@ -120,16 +121,10 @@ class TopRequestController extends Controller
         ]);
     }
 
-    private function resolveClientOwnerUserId(TopRequest $request): ?int
-    {
-        return optional(optional($request->client)->tenantClient)->primary_admin_user_id
-            ?? $request->client_id;
-    }
-
     private function resolveClientName(TopRequest $request): ?string
     {
-        return optional(optional($request->client)->tenantClient)->clientName
-            ?? optional(optional($request->client)->client)->clientName
-            ?? optional($request->client)->name;
+        return data_get($request, 'client.clientName')
+            ?? data_get($request, 'client.client_name')
+            ?? data_get($request, 'client.name');
     }
 }

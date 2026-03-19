@@ -12,7 +12,7 @@ class WalletTopupController extends Controller
 {
     public function store(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0.01',
@@ -32,7 +32,7 @@ class WalletTopupController extends Controller
         $currency =$validated['currency'] ; // You can modify this to accept currency from the request if needed
         $data = WalletTopup::create([
             'request_id' => $requestId,
-            'client_id' => $tenantOwnerUserId,
+            'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
             "currency" => $currency,
             'amount' => $amount,
@@ -49,7 +49,7 @@ class WalletTopupController extends Controller
             meta: [
                 'wallet_topup_id' => $data->id,
                 'request_id' => $data->request_id,
-                'client_id' => $tenantOwnerUserId,
+                'client_id' => $clientId,
                 'client_name' => Auth::user()->name,
                 'amount' => $data->amount,
                 'request_amount' => $data->request_amount,
@@ -59,14 +59,13 @@ class WalletTopupController extends Controller
         );
 
         $data->load([
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name',
             'creatorUser:id,name',
         ]);
-        $data->client_id = $this->resolveClientOwnerUserId($data);
         $data->client_name = $this->resolveClientName($data);
-        $data->created_by = optional($data->creatorUser)->name ?? optional($data->client)->name;
+        $data->created_by = optional($data->creatorUser)->name
+            ?? optional(optional($data->client)->primaryAdmin)->name
+            ?? $data->client_name;
 
         return response()->json([
             'status' => 'success',
@@ -77,13 +76,11 @@ class WalletTopupController extends Controller
 
     public function myRequests(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
         $query = WalletTopup::with([
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name',
             'creatorUser:id,name',
-        ])->where('client_id', $tenantOwnerUserId);
+        ])->where('client_id', $clientId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -91,9 +88,10 @@ class WalletTopupController extends Controller
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             return $item;
         });
 
@@ -103,20 +101,10 @@ class WalletTopupController extends Controller
         ]);
     }
 
-    private function resolveClientOwnerUserId(WalletTopup $topup): ?int
-    {
-        return optional($topup->clientProfileByUserId)->primary_admin_user_id
-            ?? optional($topup->clientProfileByClientId)->primary_admin_user_id
-            ?? optional(optional($topup->client)->tenantClient)->primary_admin_user_id
-            ?? $topup->client_id;
-    }
-
     private function resolveClientName(WalletTopup $topup): ?string
     {
-        return optional($topup->clientProfileByUserId)->clientName
-            ?? optional($topup->clientProfileByClientId)->clientName
-            ?? optional(optional($topup->client)->client)->clientName
-            ?? optional(optional($topup->client)->tenantClient)->clientName
-            ?? optional($topup->client)->name;
+        return data_get($topup, 'client.clientName')
+            ?? data_get($topup, 'client.client_name')
+            ?? data_get($topup, 'client.name');
     }
 }

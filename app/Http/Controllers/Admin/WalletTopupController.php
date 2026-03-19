@@ -14,10 +14,7 @@ class WalletTopupController extends Controller
     public function index(Request $request)
     {
         $query = WalletTopup::with([
-            'client.client',
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
         ]);
 
@@ -27,12 +24,7 @@ class WalletTopupController extends Controller
 
         $clientId = $request->input('client_id', $request->input('client'));
         if (!empty($clientId) && $clientId !== 'all') {
-            $query->where(function ($q) use ($clientId) {
-                $q->where('client_id', $clientId)
-                    ->orWhereHas('clientProfileByUserId', function ($sub) use ($clientId) {
-                        $sub->where('id', $clientId);
-                    });
-            });
+            $query->where('client_id', $clientId);
         }
 
         if ($request->filled('search')) {
@@ -44,23 +36,19 @@ class WalletTopupController extends Controller
                     ->orWhere('request_amount', 'like', "%{$search}%")
                     ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($clientQuery) use ($search) {
-                        $clientQuery->where('name', 'like', "%{$search}%")
+                        $clientQuery->where('clientName', 'like', "%{$search}%")
+                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('client.client', function ($clientProfileQuery) use ($search) {
-                        $clientProfileQuery->where('clientName', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('clientProfileByClientId', function ($clientProfileQuery) use ($search) {
-                        $clientProfileQuery->where('clientName', 'like', "%{$search}%");
                     });
             });
         }
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             return $item;
         });
 
@@ -90,7 +78,7 @@ class WalletTopupController extends Controller
 
         if ($previousStatus !== $validated['status']) {
             NotificationDispatcher::notifyClient(
-                client: $topup->client,
+                client: optional($topup->client)->primaryAdmin,
                 eventType: 'wallet_topup_status_updated',
                 title: 'Wallet Topup Request Updated',
                 message: "Your wallet topup request {$topup->request_id} is {$validated['status']}.",
@@ -103,15 +91,13 @@ class WalletTopupController extends Controller
         }
 
         $updatedTopup = $topup->fresh([
-            'client.client',
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
         ]);
-        $updatedTopup->client_id = $this->resolveClientOwnerUserId($updatedTopup);
         $updatedTopup->client_name = $this->resolveClientName($updatedTopup);
-        $updatedTopup->created_by = optional($updatedTopup->creatorUser)->name ?? optional($updatedTopup->client)->name;
+        $updatedTopup->created_by = optional($updatedTopup->creatorUser)->name
+            ?? optional(optional($updatedTopup->client)->primaryAdmin)->name
+            ?? $updatedTopup->client_name;
 
         return response()->json([
             'status' => 'success',
@@ -120,20 +106,10 @@ class WalletTopupController extends Controller
         ]);
     }
 
-    private function resolveClientOwnerUserId(WalletTopup $topup): ?int
-    {
-        return optional($topup->clientProfileByUserId)->primary_admin_user_id
-            ?? optional($topup->clientProfileByClientId)->primary_admin_user_id
-            ?? optional(optional($topup->client)->tenantClient)->primary_admin_user_id
-            ?? $topup->client_id;
-    }
-
     private function resolveClientName(WalletTopup $topup): ?string
     {
-        return optional($topup->clientProfileByUserId)->clientName
-            ?? optional($topup->clientProfileByClientId)->clientName
-            ?? optional(optional($topup->client)->client)->clientName
-            ?? optional(optional($topup->client)->tenantClient)->clientName
-            ?? optional($topup->client)->name;
+        return data_get($topup, 'client.clientName')
+            ?? data_get($topup, 'client.client_name')
+            ?? data_get($topup, 'client.name');
     }
 }

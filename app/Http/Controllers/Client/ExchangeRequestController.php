@@ -12,7 +12,7 @@ class ExchangeRequestController extends Controller
 {
     public function store(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         $validated = $request->validate([
             'base_currency' => ['required', 'string', 'max:10'],
@@ -25,7 +25,7 @@ class ExchangeRequestController extends Controller
         $data = $this->buildAmounts($validated);
 
         $exchangeRequest = ExchangeRequest::create([
-            'client_id' => $tenantOwnerUserId,
+            'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
             'based_cur' => strtoupper($validated['base_currency']),
             'base_currency' => strtoupper($validated['base_currency']),
@@ -46,7 +46,7 @@ class ExchangeRequestController extends Controller
             message: Auth::user()->name . " submitted exchange request #{$exchangeRequest->id}.",
             meta: [
                 'exchange_request_id' => $exchangeRequest->id,
-                'client_id' => $tenantOwnerUserId,
+                'client_id' => $clientId,
                 'client_name' => Auth::user()->name,
                 'base_currency' => $exchangeRequest->base_currency,
                 'converion_currency' => $exchangeRequest->converion_currency,
@@ -63,32 +63,27 @@ class ExchangeRequestController extends Controller
             'status' => 'success',
             'message' => 'Exchange request submitted.',
             'data' => tap($exchangeRequest->load([
-                'client:id,name,email',
-                'client.tenantClient',
-                'clientProfileByUserId:id,primary_admin_user_id,clientName',
-                'clientProfileByClientId:id,primary_admin_user_id,clientName',
+                'client.primaryAdmin:id,name,email',
                 'creatorUser:id,name',
             ]), function ($item) {
-                $item->client_id = $this->resolveClientOwnerUserId($item);
                 $item->client_name = $this->resolveClientName($item);
-                $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+                $item->created_by = optional($item->creatorUser)->name
+                    ?? optional(optional($item->client)->primaryAdmin)->name
+                    ?? $item->client_name;
             }),
         ], 201);
     }
 
     public function index(Request $request)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
 
         $query = ExchangeRequest::with([
-            'client:id,name,email',
-            'client.tenantClient',
-            'clientProfileByUserId:id,primary_admin_user_id,clientName',
-            'clientProfileByClientId:id,primary_admin_user_id,clientName',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
             'approver:id,name,email',
         ])
-            ->where('client_id', $tenantOwnerUserId);
+            ->where('client_id', $clientId);
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -118,9 +113,10 @@ class ExchangeRequestController extends Controller
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             return $item;
         });
 
@@ -137,21 +133,19 @@ class ExchangeRequestController extends Controller
 
     public function show($id)
     {
-        $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
+        $clientId = (int) request()->attributes->get('current_client_id');
 
         $exchangeRequest = ExchangeRequest::with([
-            'client:id,name,email',
-            'client.tenantClient',
-            'clientProfileByUserId:id,primary_admin_user_id,clientName',
-            'clientProfileByClientId:id,primary_admin_user_id,clientName',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
             'approver:id,name,email',
         ])
-            ->where('client_id', $tenantOwnerUserId)
+            ->where('client_id', $clientId)
             ->findOrFail($id);
-        $exchangeRequest->client_id = $this->resolveClientOwnerUserId($exchangeRequest);
         $exchangeRequest->client_name = $this->resolveClientName($exchangeRequest);
-        $exchangeRequest->created_by = optional($exchangeRequest->creatorUser)->name ?? optional($exchangeRequest->client)->name;
+        $exchangeRequest->created_by = optional($exchangeRequest->creatorUser)->name
+            ?? optional(optional($exchangeRequest->client)->primaryAdmin)->name
+            ?? $exchangeRequest->client_name;
 
         return response()->json([
             'status' => 'success',
@@ -161,8 +155,8 @@ class ExchangeRequestController extends Controller
 
     public function update(Request $request, $id)
     {
-        $tenantOwnerUserId = (int) $request->attributes->get('current_client_owner_user_id');
-        $exchangeRequest = ExchangeRequest::where('client_id', $tenantOwnerUserId)->findOrFail($id);
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $exchangeRequest = ExchangeRequest::where('client_id', $clientId)->findOrFail($id);
 
         if ($exchangeRequest->status !== ExchangeRequest::STATUS_PENDING) {
             return response()->json([
@@ -218,24 +212,22 @@ class ExchangeRequestController extends Controller
             'status' => 'success',
             'message' => 'Exchange request updated.',
             'data' => tap($exchangeRequest->fresh([
-                'client:id,name,email',
-                'client.tenantClient',
-                'clientProfileByUserId:id,primary_admin_user_id,clientName',
-                'clientProfileByClientId:id,primary_admin_user_id,clientName',
+                'client.primaryAdmin:id,name,email',
                 'creatorUser:id,name',
                 'approver:id,name,email',
             ]), function ($item) {
-                $item->client_id = $this->resolveClientOwnerUserId($item);
                 $item->client_name = $this->resolveClientName($item);
-                $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+                $item->created_by = optional($item->creatorUser)->name
+                    ?? optional(optional($item->client)->primaryAdmin)->name
+                    ?? $item->client_name;
             }),
         ]);
     }
 
     public function destroy($id)
     {
-        $tenantOwnerUserId = (int) request()->attributes->get('current_client_owner_user_id');
-        $exchangeRequest = ExchangeRequest::where('client_id', $tenantOwnerUserId)->findOrFail($id);
+        $clientId = (int) request()->attributes->get('current_client_id');
+        $exchangeRequest = ExchangeRequest::where('client_id', $clientId)->findOrFail($id);
 
         if ($exchangeRequest->status !== ExchangeRequest::STATUS_PENDING) {
             return response()->json([
@@ -269,18 +261,8 @@ class ExchangeRequestController extends Controller
 
     private function resolveClientName(ExchangeRequest $exchangeRequest): ?string
     {
-        return optional($exchangeRequest->clientProfileByUserId)->clientName
-            ?? optional($exchangeRequest->clientProfileByClientId)->clientName
-            ?? optional(optional($exchangeRequest->client)->client)->clientName
-            ?? optional(optional($exchangeRequest->client)->tenantClient)->clientName
-            ?? optional($exchangeRequest->client)->name;
-    }
-
-    private function resolveClientOwnerUserId(ExchangeRequest $exchangeRequest): ?int
-    {
-        return optional($exchangeRequest->clientProfileByUserId)->primary_admin_user_id
-            ?? optional($exchangeRequest->clientProfileByClientId)->primary_admin_user_id
-            ?? optional(optional($exchangeRequest->client)->tenantClient)->primary_admin_user_id
-            ?? $exchangeRequest->client_id;
+        return data_get($exchangeRequest, 'client.clientName')
+            ?? data_get($exchangeRequest, 'client.client_name')
+            ?? data_get($exchangeRequest, 'client.name');
     }
 }

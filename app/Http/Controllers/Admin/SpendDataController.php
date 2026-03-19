@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\GetSpendData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -13,44 +12,159 @@ class SpendDataController extends Controller
     {
         $validated = $request->validate([
             'client_id' => 'nullable',
+            'client_name' => 'nullable|string',
+            'business_name' => 'nullable|string',
+            'account_name' => 'nullable|string',
             'account_id' => 'nullable|string',
+            'group_by' => 'nullable|in:account_id,client_id,business_manager_id',
+            'search' => 'nullable|string',
             'date_start' => 'nullable|date',
             'date_end' => 'nullable|date|after_or_equal:date_start',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = GetSpendData::query();
+        $query = DB::table('get_spend_data as g')
+            ->leftJoin('clients as c', 'c.id', '=', 'g.client_id')
+            ->leftJoin('ad_account_requests as aar', function ($join) {
+                $join->on('aar.account_id', '=', 'g.account_id')
+                    ->on('aar.client_id', '=', 'g.client_id');
+            })
+            ->leftJoin('business_managers as bm', 'bm.id', '=', 'aar.business_manager_id')
+            ->select([
+                'g.id',
+                'g.client_id',
+                DB::raw("COALESCE(c.clientName, 'Unknown') as client_name"),
+                'g.account_id',
+                'aar.account_name',
+                'aar.business_name',
+                'bm.id as business_manager_id',
+                DB::raw("COALESCE(bm.name, '-') as business_manager_name"),
+                'g.spend',
+                'g.date_start',
+                'g.date_stop',
+                'g.created_at',
+                'g.updated_at',
+            ]);
 
         if (!empty($validated['client_id']) && $validated['client_id'] !== 'all') {
-            $query->where('client_id', $validated['client_id']);
+            $query->where('g.client_id', $validated['client_id']);
+        }
+
+        if (!empty($validated['client_name'])) {
+            $clientName = trim((string) $validated['client_name']);
+            $query->where('c.clientName', 'like', "%{$clientName}%");
+        }
+
+        if (!empty($validated['business_name'])) {
+            $businessName = trim((string) $validated['business_name']);
+            $query->where('aar.business_name', 'like', "%{$businessName}%");
+        }
+
+        if (!empty($validated['account_name'])) {
+            $accountName = trim((string) $validated['account_name']);
+            $query->where('aar.account_name', 'like', "%{$accountName}%");
         }
 
         if (!empty($validated['account_id']) && $validated['account_id'] !== 'all') {
-            $query->where('account_id', $validated['account_id']);
+            $query->where('g.account_id', $validated['account_id']);
+        }
+
+        if (!empty($validated['search'])) {
+            $search = trim((string) $validated['search']);
+            $query->where(function ($q) use ($search) {
+                $q->orWhere('g.client_id', 'like', "%{$search}%")
+                    ->orWhere('c.clientName', 'like', "%{$search}%")
+                    ->orWhere('g.account_id', 'like', "%{$search}%")
+                    ->orWhere('aar.account_name', 'like', "%{$search}%")
+                    ->orWhere('bm.id', 'like', "%{$search}%")
+                    ->orWhere('bm.name', 'like', "%{$search}%");
+            });
         }
 
         if (!empty($validated['date_start'])) {
-            $query->whereDate('date_start', '>=', $validated['date_start']);
+            $query->whereDate('g.date_start', '>=', $validated['date_start']);
         }
 
         if (!empty($validated['date_end'])) {
-            $query->whereDate('date_stop', '<=', $validated['date_end']);
+            $query->whereDate('g.date_stop', '<=', $validated['date_end']);
+        }
+
+        if (!empty($validated['group_by'])) {
+            switch ($validated['group_by']) {
+                case 'client_id':
+                    $query->select([
+                        'g.client_id',
+                        DB::raw("COALESCE(c.clientName, 'Unknown') as client_name"),
+                        DB::raw('ROUND(SUM(g.spend), 2) as total_spend'),
+                        DB::raw('MIN(g.date_start) as date_start'),
+                        DB::raw('MAX(g.date_stop) as date_stop'),
+                    ])->groupBy('g.client_id', 'c.clientName');
+                    break;
+                case 'account_id':
+                    $query->select([
+                        'g.account_id',
+                        'aar.account_name',
+                        DB::raw('ROUND(SUM(g.spend), 2) as total_spend'),
+                        DB::raw('MIN(g.date_start) as date_start'),
+                        DB::raw('MAX(g.date_stop) as date_stop'),
+                    ])->groupBy('g.account_id', 'aar.account_name');
+                    break;
+                case 'business_manager_id':
+                    $query->select([
+                        'bm.id as business_manager_id',
+                        DB::raw("COALESCE(bm.name, '-') as business_manager_name"),
+                        DB::raw('ROUND(SUM(g.spend), 2) as total_spend'),
+                        DB::raw('MIN(g.date_start) as date_start'),
+                        DB::raw('MAX(g.date_stop) as date_stop'),
+                    ])->groupBy('bm.id', 'bm.name');
+                    break;
+            }
         }
 
         $perPage = (int) ($validated['per_page'] ?? 10);
 
         $items = $query
-            ->orderByDesc('date_start')
+            ->orderByDesc('g.date_start')
             ->paginate($perPage);
+
+        $clients = DB::table('clients')
+            ->select([
+                'id as client_id',
+                DB::raw("COALESCE(clientName, 'Unknown') as client_name"),
+            ])
+            ->orderBy('client_name')
+            ->get();
+
+        $businessManagers = DB::table('business_managers')
+            ->select([
+                'id as business_manager_id',
+                DB::raw("COALESCE(name, '-') as business_manager_name"),
+            ])
+            ->orderBy('business_manager_name')
+            ->get();
+
+        $accounts = DB::table('ad_account_requests')
+            ->select([
+                'account_id',
+                'account_name',
+            ])
+            ->distinct()
+            ->orderBy('account_name')
+            ->get();
 
         return response()->json([
             'status' => 'success',
             'data' => $items,
+            'filters' => [
+                'clients' => $clients,
+                'business_managers' => $businessManagers,
+                'accounts' => $accounts,
+            ],
         ]);
     }
 
-    public function clientSummary(Request $request)
+    public function summary(Request $request)
     {
         $validated = $request->validate([
             'client_id' => 'nullable',
@@ -59,84 +173,56 @@ class SpendDataController extends Controller
             'date_end' => 'nullable|date|after_or_equal:date_start',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
-            'include_empty' => 'nullable|boolean',
         ]);
-
-        $includeEmpty = (bool) ($validated['include_empty'] ?? false);
-
-        $spendQuery = GetSpendData::query()
-            ->selectRaw('client_id, SUM(spend) as total_spend')
-            ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
-                $clientId = $validated['client_id'];
-                $query->whereExists(function ($sub) use ($clientId) {
-                    $sub->select(DB::raw(1))
-                        ->from('clients as c')
-                        ->where('c.id', $clientId)
-                        ->where(function ($match) {
-                            $match->whereColumn('c.primary_admin_user_id', 'get_spend_data.client_id')
-                                ->orWhereColumn('c.id', 'get_spend_data.client_id');
-                        });
-                });
-            })
-            ->when(!empty($validated['account_id']) && $validated['account_id'] !== 'all', function ($query) use ($validated) {
-                $query->where('account_id', $validated['account_id']);
-            })
-            ->when(!empty($validated['date_start']), function ($query) use ($validated) {
-                $query->whereDate('date_start', '>=', $validated['date_start']);
-            })
-            ->when(!empty($validated['date_end']), function ($query) use ($validated) {
-                $query->whereDate('date_stop', '<=', $validated['date_end']);
-            })
-            ->groupBy('client_id');
 
         $perPage = (int) ($validated['per_page'] ?? 10);
 
-        if ($includeEmpty) {
-            $summary = DB::table('clients as c')
-                ->leftJoinSub($spendQuery, 'spend', function ($join) {
-                    $join->on('c.primary_admin_user_id', '=', 'spend.client_id')
-                        ->orOn('c.id', '=', 'spend.client_id');
-                })
-                ->leftJoin('users as u', 'u.id', '=', 'c.primary_admin_user_id')
-                ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
-                    $query->where('c.id', $validated['client_id']);
-                })
-                ->select([
-                    'c.id as client_id',
-                    DB::raw("COALESCE(c.clientName, u.name, 'Unknown') as client_name"),
-                    DB::raw('ROUND(COALESCE(c.serviceFeePercent, 0), 2) as service_fee_percent'),
-                    DB::raw('ROUND(COALESCE(spend.total_spend, 0), 2) as total_spends'),
-                    DB::raw('ROUND(COALESCE(spend.total_spend, 0), 2) as total_spends_usd'),
-                    DB::raw('ROUND((COALESCE(spend.total_spend, 0) * COALESCE(c.serviceFeePercent, 0) / 100), 2) as total_profit'),
-                ])
-                ->orderByDesc('total_spends')
-                ->paginate($perPage);
-        } else {
-            $summary = DB::query()
-                ->fromSub($spendQuery, 'spend')
-                ->leftJoin('clients as c', function ($join) {
-                    $join->on('c.primary_admin_user_id', '=', 'spend.client_id')
-                        ->orOn('c.id', '=', 'spend.client_id');
-                })
-                ->leftJoin('users as u', 'u.id', '=', 'spend.client_id')
-                ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
-                    $query->where('c.id', $validated['client_id']);
-                })
-                ->select([
-                    'c.id as client_id',
-                    DB::raw("COALESCE(c.clientName, u.name, 'Unknown') as client_name"),
-                    DB::raw('ROUND(COALESCE(c.serviceFeePercent, 0), 2) as service_fee_percent'),
-                    DB::raw('ROUND(spend.total_spend, 2) as total_spends'),
-                    DB::raw('ROUND(spend.total_spend, 2) as total_spends_usd'),
-                    DB::raw('ROUND((spend.total_spend * COALESCE(c.serviceFeePercent, 0) / 100), 2) as total_profit'),
-                ])
-                ->orderByDesc('total_spends')
-                ->paginate($perPage);
-        }
+        $spendQuery = DB::table('get_spend_data as g')
+            ->selectRaw('g.client_id, SUM(g.spend) as total_spend')
+            ->when(!empty($validated['account_id']) && $validated['account_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('g.account_id', $validated['account_id']);
+            })
+            ->when(!empty($validated['date_start']), function ($query) use ($validated) {
+                $query->whereDate('g.date_start', '>=', $validated['date_start']);
+            })
+            ->when(!empty($validated['date_end']), function ($query) use ($validated) {
+                $query->whereDate('g.date_stop', '<=', $validated['date_end']);
+            })
+            ->groupBy('g.client_id');
+
+        $summary = DB::table('clients as c')
+            ->leftJoinSub($spendQuery, 'spend', function ($join) {
+                $join->on('c.id', '=', 'spend.client_id');
+            })
+            ->leftJoin('users as u', 'u.id', '=', 'c.primary_admin_user_id')
+            ->when(!empty($validated['client_id']) && $validated['client_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('c.id', $validated['client_id']);
+            })
+            ->select([
+                'c.id as client_id',
+                DB::raw("COALESCE(c.clientName, u.name, 'Unknown') as client_name"),
+                DB::raw('ROUND(COALESCE(c.serviceFeePercent, 0), 2) as service_fee'),
+                DB::raw('ROUND(COALESCE(spend.total_spend, 0), 2) as total_spending'),
+                DB::raw('ROUND(COALESCE(spend.total_spend, 0), 2) as total_spend_usd'),
+                DB::raw('ROUND((COALESCE(spend.total_spend, 0) * COALESCE(c.serviceFeePercent, 0) / 100), 2) as total_profit'),
+            ])
+            ->orderByDesc('total_spending')
+            ->paginate($perPage);
+
+        $clients = DB::table('clients')
+            ->select([
+                'id as client_id',
+                DB::raw("COALESCE(clientName, 'Unknown') as client_name"),
+            ])
+            ->orderBy('client_name')
+            ->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $summary,
+            'data' => [
+                'summary' => $summary,
+                'clients' => $clients,
+            ],
         ]);
     }
 }

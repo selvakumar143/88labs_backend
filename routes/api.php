@@ -110,6 +110,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
         Route::get('/client/profile/fields', [ClientProfileController::class, 'fields']);
         Route::get('/client/spend-data', [ClientSpendDataController::class, 'index']);
+        Route::get('/client/spend-data/summary', [ClientSpendDataController::class, 'summary']);
 
         // Notifications
         Route::get('/client/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -188,8 +189,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Admin Dashboard
         Route::get('/admin', [AdminController::class, 'index']);
-        Route::get('/admin/spend-data', [AdminSpendDataController::class, 'index']);
-        Route::get('/admin/client-spend-summary', [AdminSpendDataController::class, 'clientSummary']);
+        Route::get('/admin/spend-data', [AdminSpendDataController::class, 'index']);       
+        Route::get('/admin/spend-data/summary', [AdminSpendDataController::class, 'summary']);
 
         // Notifications
         Route::get('/admin/notifications/unread-count', [NotificationController::class, 'unreadCount']);

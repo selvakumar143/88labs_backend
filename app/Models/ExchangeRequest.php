@@ -39,22 +39,12 @@ class ExchangeRequest extends Model
 
     public function client()
     {
-        return $this->belongsTo(User::class, 'client_id');
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function creatorUser()
     {
         return $this->belongsTo(User::class, 'sub_user_id');
-    }
-
-    public function clientProfileByUserId()
-    {
-        return $this->belongsTo(Client::class, 'client_id', 'primary_admin_user_id');
-    }
-
-    public function clientProfileByClientId()
-    {
-        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function approver()

@@ -15,10 +15,7 @@ class AdAccountRequestController extends Controller
     public function index(Request $request)
     {
         $query = AdAccountRequest::with([
-            'client.client',
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
             'businessManager',
         ]);
@@ -29,12 +26,7 @@ class AdAccountRequestController extends Controller
 
         $clientId = $request->input('client_id', $request->input('client'));
         if (!empty($clientId) && $clientId !== 'all') {
-            $query->where(function ($q) use ($clientId) {
-                $q->where('client_id', $clientId)
-                    ->orWhereHas('clientProfileByUserId', function ($sub) use ($clientId) {
-                        $sub->where('id', $clientId);
-                    });
-            });
+            $query->where('client_id', $clientId);
         }
 
         if ($request->filled('search')) {
@@ -44,25 +36,23 @@ class AdAccountRequestController extends Controller
                   ->orWhere('account_name', 'like', "%{$request->search}%")
                   ->orWhere('vcc_provider', 'like', "%{$request->search}%")
                   ->orWhereHas('client', function ($sub) use ($request) {
-                      $sub->where('name', 'like', "%{$request->search}%");
-                  })
-                  ->orWhereHas('client.client', function ($sub) use ($request) {
-                      $sub->where('clientName', 'like', "%{$request->search}%");
+                      $sub->where('clientName', 'like', "%{$request->search}%")
+                          ->orWhere('client_name', 'like', "%{$request->search}%")
+                          ->orWhere('email', 'like', "%{$request->search}%");
                   })
                   ->orWhereHas('businessManager', function ($sub) use ($request) {
                       $sub->where('name', 'like', "%{$request->search}%");
                   })
-                  ->orWhereHas('clientProfileByClientId', function ($sub) use ($request) {
-                      $sub->where('clientName', 'like', "%{$request->search}%");
-                  });
+                  ;
             });
         }
 
         $data = $query->latest()->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
-            $item->client_id = $this->resolveClientOwnerUserId($item);
             $item->client_name = $this->resolveClientName($item);
-            $item->created_by = optional($item->creatorUser)->name ?? optional($item->client)->name;
+            $item->created_by = optional($item->creatorUser)->name
+                ?? optional(optional($item->client)->primaryAdmin)->name
+                ?? $item->client_name;
             $item->business_manager_name = optional($item->businessManager)->name;
             return $item;
         });
@@ -137,7 +127,7 @@ class AdAccountRequestController extends Controller
 
         if ($previousStatus !== $validated['status']) {
             NotificationDispatcher::notifyClient(
-                client: $requestData->client,
+                client: optional($requestData->client)->primaryAdmin,
                 eventType: 'ad_account_request_status_updated',
                 title: 'Ad Account Request Updated',
                 message: "Your ad account request {$requestData->request_id} is {$validated['status']}.",
@@ -150,16 +140,14 @@ class AdAccountRequestController extends Controller
         }
 
         $updatedRequest = $requestData->fresh([
-            'client.client',
-            'client.tenantClient',
-            'clientProfileByUserId',
-            'clientProfileByClientId',
+            'client.primaryAdmin:id,name,email',
             'creatorUser:id,name',
             'businessManager',
         ]);
-        $updatedRequest->client_id = $this->resolveClientOwnerUserId($updatedRequest);
         $updatedRequest->client_name = $this->resolveClientName($updatedRequest);
-        $updatedRequest->created_by = optional($updatedRequest->creatorUser)->name ?? optional($updatedRequest->client)->name;
+        $updatedRequest->created_by = optional($updatedRequest->creatorUser)->name
+            ?? optional(optional($updatedRequest->client)->primaryAdmin)->name
+            ?? $updatedRequest->client_name;
         $updatedRequest->business_manager_name = optional($updatedRequest->businessManager)->name;
 
         return response()->json([
@@ -169,20 +157,10 @@ class AdAccountRequestController extends Controller
         ]);
     }
 
-    private function resolveClientOwnerUserId(AdAccountRequest $request): ?int
-    {
-        return optional($request->clientProfileByUserId)->primary_admin_user_id
-            ?? optional($request->clientProfileByClientId)->primary_admin_user_id
-            ?? optional(optional($request->client)->tenantClient)->primary_admin_user_id
-            ?? $request->client_id;
-    }
-
     private function resolveClientName(AdAccountRequest $request): ?string
     {
-        return optional($request->clientProfileByUserId)->clientName
-            ?? optional($request->clientProfileByClientId)->clientName
-            ?? optional(optional($request->client)->client)->clientName
-            ?? optional(optional($request->client)->tenantClient)->clientName
-            ?? optional($request->client)->name;
+        return data_get($request, 'client.clientName')
+            ?? data_get($request, 'client.client_name')
+            ?? data_get($request, 'client.name');
     }
 }

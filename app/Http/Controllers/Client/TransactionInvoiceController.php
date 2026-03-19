@@ -131,16 +131,14 @@ class TransactionInvoiceController extends Controller
 
     private function walletTopupInvoice(int $id): array
     {
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
         $item = WalletTopup::with([
-            'client:id,name,email',
-            'clientProfileByUserId:id,primary_admin_user_id,clientName',
-            'clientProfileByClientId:id,primary_admin_user_id,clientName',
+            'client.primaryAdmin:id,name,email',
             'approver:id,name,email',
-        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
+        ])->where('client_id', $clientId)->findOrFail($id);
 
         $requestAmount = (float) ($item->request_amount ?? $item->amount);
         $serviceFee = (float) ($item->service_fee ?? 0);
@@ -159,7 +157,7 @@ class TransactionInvoiceController extends Controller
             'client' => [
                 'id' => $item->client_id,
                 'name' => $this->resolveClientName($item),
-                'email' => optional($item->client)->email,
+                'email' => data_get($item, 'client.email'),
             ],
             'details' => [
                 'payment_mode' => $item->payment_mode,
@@ -188,15 +186,15 @@ class TransactionInvoiceController extends Controller
 
     private function accountTopupInvoice(int $id): array
     {
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
         $item = TopRequest::with([
-            'client:id,name,email',
+            'client.primaryAdmin:id,name,email',
             'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
+        ])->where('client_id', $clientId)->findOrFail($id);
 
         $amount = (float) $item->amount;
         $adAccount = $item->adAccountRequest;
@@ -213,8 +211,8 @@ class TransactionInvoiceController extends Controller
             'approved_by' => null,
             'client' => [
                 'id' => $item->client_id,
-                'name' => optional($item->client)->name,
-                'email' => optional($item->client)->email,
+                'name' => $this->resolveClientName($item),
+                'email' => data_get($item, 'client.email'),
             ],
             'details' => [
                 'ad_account_request_id' => optional($adAccount)->request_id,
@@ -238,16 +236,14 @@ class TransactionInvoiceController extends Controller
 
     private function exchangeRequestInvoice(int $id): array
     {
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
         $item = ExchangeRequest::with([
-            'client:id,name,email',
-            'clientProfileByUserId:id,primary_admin_user_id,clientName',
-            'clientProfileByClientId:id,primary_admin_user_id,clientName',
+            'client.primaryAdmin:id,name,email',
             'approver:id,name,email',
-        ])->where('client_id', $tenantOwnerUserId)->findOrFail($id);
+        ])->where('client_id', $clientId)->findOrFail($id);
 
         $requestAmount = (float) $item->request_amount;
         $serviceFee = (float) $item->service_fee;
@@ -267,7 +263,7 @@ class TransactionInvoiceController extends Controller
             'client' => [
                 'id' => $item->client_id,
                 'name' => $this->resolveClientName($item),
-                'email' => optional($item->client)->email,
+                'email' => data_get($item, 'client.email'),
             ],
             'details' => [
                 'base_currency' => (string) ($item->base_currency ?? $item->based_cur),
@@ -296,9 +292,8 @@ class TransactionInvoiceController extends Controller
 
     private function resolveClientName(object $item): ?string
     {
-        return data_get($item, 'clientProfileByUserId.clientName')
-            ?? data_get($item, 'clientProfileByClientId.clientName')
-            ?? data_get($item, 'client.client.clientName')
+        return data_get($item, 'client.clientName')
+            ?? data_get($item, 'client.client_name')
             ?? data_get($item, 'client.name');
     }
 }
