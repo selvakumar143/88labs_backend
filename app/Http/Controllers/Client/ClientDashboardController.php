@@ -11,6 +11,7 @@ use App\Models\WalletTopup;
 use App\Models\AdAccountRequest;
 use App\Models\ExchangeRequest;
 use App\Models\TopRequest;
+use App\Models\GetSpendData;
 
 class ClientDashboardController extends Controller
 {
@@ -59,10 +60,15 @@ class ClientDashboardController extends Controller
                 ->where('client_id', $clientId);
 
             if (Schema::hasColumn('exchange_requests', 'status')) {
-                $exchangeQuery->whereIn(DB::raw('LOWER(status)'), [
+                // Pending exchanges should reduce wallet (outgoing), but only approved exchanges add back (incoming).
+                $exchangeOutQuery = (clone $exchangeQuery)->whereIn(DB::raw('LOWER(status)'), [
                     ExchangeRequest::STATUS_PENDING,
                     ExchangeRequest::STATUS_APPROVED,
                 ]);
+                $exchangeInQuery = (clone $exchangeQuery)->whereRaw('LOWER(status) = ?', [ExchangeRequest::STATUS_APPROVED]);
+            } else {
+                $exchangeOutQuery = clone $exchangeQuery;
+                $exchangeInQuery = clone $exchangeQuery;
             }
 
             $exchangeDateColumns = [];
@@ -76,14 +82,22 @@ class ClientDashboardController extends Controller
                 $exchangeDateExpression = 'DATE(COALESCE(' . implode(', ', $exchangeDateColumns) . '))';
 
                 if ($startDate) {
-                    $exchangeQuery->whereRaw(
+                    $exchangeOutQuery->whereRaw(
+                        "{$exchangeDateExpression} >= ?",
+                        [Carbon::parse($startDate)->toDateString()]
+                    );
+                    $exchangeInQuery->whereRaw(
                         "{$exchangeDateExpression} >= ?",
                         [Carbon::parse($startDate)->toDateString()]
                     );
                 }
 
                 if ($endDate) {
-                    $exchangeQuery->whereRaw(
+                    $exchangeOutQuery->whereRaw(
+                        "{$exchangeDateExpression} <= ?",
+                        [Carbon::parse($endDate)->toDateString()]
+                    );
+                    $exchangeInQuery->whereRaw(
                         "{$exchangeDateExpression} <= ?",
                         [Carbon::parse($endDate)->toDateString()]
                     );
@@ -109,14 +123,14 @@ class ClientDashboardController extends Controller
                 : (Schema::hasColumn('exchange_requests', 'final_amount') ? 'final_amount' : null);
 
             if ($baseCurrencyColumn) {
-                $exchangeOutByCurrency = (clone $exchangeQuery)
+                $exchangeOutByCurrency = (clone $exchangeOutQuery)
                     ->selectRaw("UPPER({$baseCurrencyColumn}) as currency, SUM({$exchangeDeductionExpression}) as total")
                     ->groupBy(DB::raw("UPPER({$baseCurrencyColumn})"))
                     ->pluck('total', 'currency');
             }
 
             if ($conversionCurrencyColumn && $exchangeReturnExpression) {
-                $exchangeInByCurrency = (clone $exchangeQuery)
+                $exchangeInByCurrency = (clone $exchangeInQuery)
                     ->selectRaw("UPPER({$conversionCurrencyColumn}) as currency, SUM({$exchangeReturnExpression}) as total")
                     ->groupBy(DB::raw("UPPER({$conversionCurrencyColumn})"))
                     ->pluck('total', 'currency');
@@ -163,7 +177,9 @@ class ClientDashboardController extends Controller
 
     public function dashboard(Request $request)
     {
-        $clientId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
         $year = (int) $request->input('year', now()->year);
 
         $walletBalances = $this->getWalletBalances($clientId);
@@ -220,6 +236,7 @@ class ClientDashboardController extends Controller
             });
 
         $totalActiveAdsAccount = $this->getTotalActiveAdsAccount($clientId);
+        $totalSpendTrend = $this->GetSpendsTrend($clientId, $startDate, $endDate);
     
         /*
         |--------------------------------------------------------------------------
@@ -237,7 +254,8 @@ class ClientDashboardController extends Controller
                     'total_active_ads_account' => (int) $totalActiveAdsAccount,
                 ],
                 'monthly_topups' => $monthlyData,
-                'recent_topups' => $recentTopups
+                'recent_topups' => $recentTopups,
+                'totalSpendTrend' => $totalSpendTrend,
             ]
         ]);
     }
@@ -251,7 +269,7 @@ class ClientDashboardController extends Controller
 
     public function wallet(Request $request)
     {
-        $clientId = (int) $request->attributes->get('current_client_owner_user_id');
+        $clientId = (int) $request->attributes->get('current_client_id');
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
 
@@ -265,9 +283,9 @@ class ClientDashboardController extends Controller
 
     public function walletSummary()
     {
-        $clientId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
         $balances = $this->getWalletBalances($clientId);
 
         return response()->json([
@@ -278,9 +296,9 @@ class ClientDashboardController extends Controller
 
     public function totalActiveAccounts()
     {
-        $clientId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
         $totalActiveAdsAccount = $this->getTotalActiveAdsAccount($clientId);
 
         return response()->json([
@@ -289,5 +307,28 @@ class ClientDashboardController extends Controller
                 'total_active_ads_account' => $totalActiveAdsAccount,
             ],
         ]);
+    }
+
+    public function GetSpendsTrend($clientId='',$startDate,$endDate)
+    {
+
+        $query = GetSpendData::query();
+
+        $query->where('client_id', $clientId);
+
+        if (!empty($startDate)) {
+            $query->whereDate('date_start', '>=', $startDate);
+        }
+
+        if (!empty($endDate)) {
+            $query->whereDate('date_stop', '<=', $endDate);
+        }
+
+        $perPage = 20;
+
+        $items = $query
+            ->orderByDesc('date_start')->get();
+            
+        return $items;
     }
 }

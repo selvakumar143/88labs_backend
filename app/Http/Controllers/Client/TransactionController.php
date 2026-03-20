@@ -182,12 +182,12 @@ class TransactionController extends Controller
 
     protected function walletTransactions(array $filters): Collection
     {
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
-        $query = WalletTopup::with(['client.tenantClient', 'creatorUser:id,name'])
-            ->where('client_id', $tenantOwnerUserId);
+        $query = WalletTopup::with(['client.primaryAdmin:id,name', 'creatorUser:id,name'])
+            ->where('client_id', $clientId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -216,18 +216,21 @@ class TransactionController extends Controller
         return $query->latest()->get()->map(function (WalletTopup $item) {
             $requestAmount = (string) ($item->request_amount ?? $item->amount);
             $serviceFee = (string) ($item->service_fee ?? 0);
-            $ownerUserId = optional(optional($item->client)->tenantClient)->primary_admin_user_id
-                ?? $item->client_id;
+            $clientName = data_get($item, 'client.clientName')
+                ?? data_get($item, 'client.client_name')
+                ?? data_get($item, 'client.name');
 
             return [
                 'transaction_type' => 'wallet_topup',
                 'transaction_type_key' => 'wallet_topup',
                 'id' => $item->id,
                 'reference' => $item->request_id ?? ('WALLET-' . $item->id),
-                'client_id' => $ownerUserId,
-                'client_name' => optional($item->client)->name,
+                'client_id' => $item->client_id,
+                'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
-                'created_by' => optional($item->creatorUser)->name ?? optional($item->client)->name,
+                'created_by' => optional($item->creatorUser)->name
+                    ?? optional(optional($item->client)->primaryAdmin)->name
+                    ?? $clientName,
                 'business_name' => null,
                 'account_id' => null,
                 'account_name' => null,
@@ -249,17 +252,16 @@ class TransactionController extends Controller
 
     protected function accountTopupTransactions(array $filters): Collection
     {
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
         $query = TopRequest::with([
-            'client:id,name,client_id',
-            'client.tenantClient',
+            'client.primaryAdmin:id,name',
             'creatorUser:id,name',
             'adAccountRequest:id,request_id,business_name,business_manager_id,account_id,account_name,card_type,card_number',
             'adAccountRequest.businessManager:id,name',
-        ])->where('client_id', $tenantOwnerUserId);
+        ])->where('client_id', $clientId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
@@ -287,18 +289,21 @@ class TransactionController extends Controller
 
         return $query->latest()->get()->map(function (TopRequest $item) {
             $adAccount = $item->adAccountRequest;
-            $ownerUserId = optional(optional($item->client)->tenantClient)->primary_admin_user_id
-                ?? $item->client_id;
+            $clientName = data_get($item, 'client.clientName')
+                ?? data_get($item, 'client.client_name')
+                ?? data_get($item, 'client.name');
 
             return [
                 'transaction_type' => 'account_topup',
                 'transaction_type_key' => 'account_topup',
                 'id' => $item->id,
                 'reference' => 'TOP-' . $item->id,
-                'client_id' => $ownerUserId,
-                'client_name' => optional($item->client)->name,
+                'client_id' => $item->client_id,
+                'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
-                'created_by' => optional($item->creatorUser)->name ?? optional($item->client)->name,
+                'created_by' => optional($item->creatorUser)->name
+                    ?? optional(optional($item->client)->primaryAdmin)->name
+                    ?? $clientName,
                 'business_name' => optional($adAccount)->business_name,
                 'account_id' => optional($adAccount)->account_id,
                 'account_name' => optional($adAccount)->account_name,
@@ -321,12 +326,12 @@ class TransactionController extends Controller
             return collect();
         }
 
-        $tenantOwnerUserId = app()->bound('currentClientOwnerUserId')
-            ? (int) app('currentClientOwnerUserId')
-            : (int) auth()->id();
+        $clientId = app()->bound('currentClientId')
+            ? (int) app('currentClientId')
+            : (int) auth()->user()?->tenantClientId();
 
         $query = DB::table('exchange_requests')
-            ->where('client_id', $tenantOwnerUserId);
+            ->where('client_id', $clientId);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('exchange_requests', 'status')) {
             $query->where('status', $filters['status']);
@@ -363,26 +368,28 @@ class TransactionController extends Controller
 
         $rows = $query->orderByDesc('id')->get();
         $clientIds = $rows->pluck('client_id')->filter()->unique()->values();
-        $clientNames = User::whereIn('id', $clientIds)->pluck('name', 'id');
+        $clientProfiles = $this->loadClientProfiles($clientIds->all());
         $creatorIds = $rows->pluck('sub_user_id')->filter()->unique()->values();
         $creatorNames = $creatorIds->isEmpty()
             ? collect()
             : User::whereIn('id', $creatorIds)->pluck('name', 'id');
 
-        return $rows->map(function ($row) use ($clientNames, $creatorNames) {
+        return $rows->map(function ($row) use ($clientProfiles, $creatorNames) {
             $createdAt = data_get($row, 'created_at');
             $timestamp = $createdAt ? strtotime((string) $createdAt) : 0;
-            $ownerUserId = $this->resolveClientOwnerUserIdFromRaw((int) data_get($row, 'client_id'));
+            $clientId = (string) data_get($row, 'client_id');
+            $clientProfile = $clientProfiles[$clientId] ?? null;
+            $clientName = data_get($clientProfile, 'client_name');
 
             return [
                 'transaction_type' => 'exchange_request',
                 'transaction_type_key' => 'exchange_request',
                 'id' => data_get($row, 'id'),
                 'reference' => data_get($row, 'request_id', 'EXCH-' . data_get($row, 'id')),
-                'client_id' => $ownerUserId,
-                'client_name' => $clientNames[data_get($row, 'client_id')] ?? null,
+                'client_id' => data_get($row, 'client_id'),
+                'client_name' => $clientName,
                 'sub_user_id' => data_get($row, 'sub_user_id'),
-                'created_by' => $creatorNames[data_get($row, 'sub_user_id')] ?? ($clientNames[data_get($row, 'client_id')] ?? null),
+                'created_by' => $creatorNames[data_get($row, 'sub_user_id')] ?? $clientName,
                 'business_name' => null,
                 'account_id' => data_get($row, 'account_id'),
                 'account_name' => data_get($row, 'account_name'),
@@ -410,19 +417,13 @@ class TransactionController extends Controller
         }
 
         $rows = DB::table('clients')
-            ->whereIn('primary_admin_user_id', $clientIds)
-            ->orWhereIn('id', $clientIds)
+            ->whereIn('id', $clientIds)
             ->get();
 
         $profiles = [];
         foreach ($rows as $row) {
             $profile = $this->normalizeClientProfile($row);
-            $userId = (string) data_get($row, 'primary_admin_user_id', '');
             $clientId = (string) data_get($row, 'id', '');
-
-            if ($userId !== '') {
-                $profiles[$userId] = $profile;
-            }
 
             if ($clientId !== '' && !isset($profiles[$clientId])) {
                 $profiles[$clientId] = $profile;
@@ -527,19 +528,6 @@ class TransactionController extends Controller
 
     private function resolveClientOwnerUserIdFromRaw(int $clientId): int
     {
-        $ownerUserId = DB::table('clients')
-            ->where('primary_admin_user_id', $clientId)
-            ->value('primary_admin_user_id');
-
-        if ($ownerUserId) {
-            return (int) $ownerUserId;
-        }
-
-        $tenantOwner = DB::table('users')
-            ->join('clients', 'users.client_id', '=', 'clients.id')
-            ->where('users.id', $clientId)
-            ->value('clients.primary_admin_user_id');
-
-        return $tenantOwner ? (int) $tenantOwner : $clientId;
+        return $clientId;
     }
 }

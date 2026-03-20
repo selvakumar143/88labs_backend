@@ -31,6 +31,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
         $fields = (string) config('services.facebook_spend.fields', 'spend,campaign_name,adset_name,ad_name');
         $datePreset = (string) config('services.facebook_spend.date_preset', 'last_month');
         $timeout = (int) config('services.facebook_spend.http_timeout', 30);
+        $time_increment = (string) config('services.facebook_spend.time_increment', 1);
 
         if ($baseUrl === '' || $token === '' || $this->accountId === '') {
             Log::warning('Skipping spend fetch because config or account_id is missing.', [
@@ -40,7 +41,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
             return;
         }
 
-        $url = "{$baseUrl}/{$this->accountId}/{$endpoint}";
+        $url = "{$baseUrl}/act_{$this->accountId}/{$endpoint}";
         $isFirstRequest = true;
         $insertedRows = 0;
 
@@ -51,6 +52,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
             'endpoint' => $endpoint,
             'fields' => $fields,
             'date_preset' => $datePreset,
+            'time_increment' => $time_increment
         ]);
 
         while ($url) {
@@ -60,6 +62,7 @@ class FetchAdAccountSpendJob implements ShouldQueue
                     'fields' => $fields,
                     'date_preset' => $datePreset,
                     'access_token' => $token,
+                    'time_increment' => $time_increment,
                 ])
                 : $request->get($url);
 
@@ -100,13 +103,31 @@ class FetchAdAccountSpendJob implements ShouldQueue
             }
 
             foreach ($rows as $row) {
-                GetSpendData::create([
-                    'client_id' => $this->clientId,
-                    'account_id' => $this->accountId,
-                    'spend' => (float) data_get($row, 'spend', 0),
-                    'date_start' => data_get($row, 'date_start'),
-                    'date_stop' => data_get($row, 'date_stop'),
-                ]);
+                $dateStart = data_get($row, 'date_start');
+                $dateStop = data_get($row, 'date_stop');
+                $spend = (float) data_get($row, 'spend', 0);
+
+                $existing = GetSpendData::query()
+                    ->where('client_id', $this->clientId)
+                    ->where('account_id', $this->accountId)
+                    ->whereDate('date_start', $dateStart)
+                    ->whereDate('date_stop', $dateStop)
+                    ->first();
+
+                if ($existing) {
+                    $existing->spend = $spend;
+                    $existing->date_start = $dateStart;
+                    $existing->date_stop = $dateStop;
+                    $existing->save();
+                } else {
+                    GetSpendData::create([
+                        'client_id' => $this->clientId,
+                        'account_id' => $this->accountId,
+                        'spend' => $spend,
+                        'date_start' => $dateStart,
+                        'date_stop' => $dateStop,
+                    ]);
+                }
                 $insertedRows++;
             }
 
