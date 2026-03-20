@@ -31,9 +31,12 @@ class AdAccountRequestController extends Controller
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('request_id', 'like', "%{$request->search}%")
+                $q->where('req_name', 'like', "%{$request->search}%")
+                  ->orWhere('request_id', 'like', "%{$request->search}%")
                   ->orWhere('account_id', 'like', "%{$request->search}%")
                   ->orWhere('account_name', 'like', "%{$request->search}%")
+                  ->orWhere('type', 'like', "%{$request->search}%")
+                  ->orWhere('api', 'like', "%{$request->search}%")
                   ->orWhere('vcc_provider', 'like', "%{$request->search}%")
                   ->orWhereHas('client', function ($sub) use ($request) {
                       $sub->where('clientName', 'like', "%{$request->search}%")
@@ -71,6 +74,11 @@ class AdAccountRequestController extends Controller
                 AdAccountRequest::STATUS_REJECTED,
                 AdAccountRequest::STATUS_PENDING,
             ])],
+            'req_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'api' => ['sometimes', 'nullable', Rule::in([
+                AdAccountRequest::API_ENABLE,
+                AdAccountRequest::API_DISABLE,
+            ])],
             'business_manager_id' => ['sometimes', 'nullable', 'exists:business_managers,id'],
             'vcc_provider' => ['sometimes', 'nullable', 'string', 'max:255'],
             'account_name' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -93,6 +101,14 @@ class AdAccountRequestController extends Controller
 
             if (array_key_exists('business_manager_id', $validated)) {
                 $updateData['business_manager_id'] = $validated['business_manager_id'];
+            }
+
+            if (array_key_exists('req_name', $validated)) {
+                $updateData['req_name'] = $validated['req_name'];
+            }
+
+            if (array_key_exists('api', $validated)) {
+                $updateData['api'] = $validated['api'] ?? AdAccountRequest::API_ENABLE;
             }
 
             if (array_key_exists('vcc_provider', $validated)) {

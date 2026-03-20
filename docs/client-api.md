@@ -50,6 +50,12 @@ Notes:
 | GET | `/client/ad-account-requests` | List ad account requests |
 | GET | `/my-ad-account-requests` | List current customer requests |
 
+Ad account request body:
+- `req_name` (string, required)
+- `number_of_accounts` (integer, required): number of child rows to create
+- `api` (`enable|disable`, optional): defaults to `enable`
+- Each submission creates 1 `master` row plus `number_of_accounts` `child` rows
+
 ### Wallet
 
 | Method | Endpoint | Description |

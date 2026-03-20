@@ -419,6 +419,7 @@ curl --request POST 'http://localhost:8000/api/ad-account-request' \
   --header 'Accept: application/json' \
   --header 'Content-Type: application/json' \
   --data '{
+    "req_name":"Acme Fashion Batch",
     "business_name":"Acme Fashion Group",
     "platform":"Facebook",
     "timezone":"Asia/Dubai",
@@ -428,10 +429,17 @@ curl --request POST 'http://localhost:8000/api/ad-account-request' \
     "website_url":"https://acmefashion.example.com",
     "account_type":"Business",
     "personal_profile":"https://facebook.com/john.customer",
+    "api":"enable",
     "number_of_accounts":2,
     "notes":"Need ad accounts for fashion and beauty campaigns."
   }'
 ```
+
+Notes:
+- `req_name` is required
+- `api` defaults to `enable` when omitted
+- `number_of_accounts` means number of child rows to create
+- Total records created = `1 master + number_of_accounts child rows`
 
 ### 2) Client: List Own Ad Account Requests
 
@@ -442,7 +450,7 @@ Backward-compatible endpoint (same response):
 
 Optional query params:
 - `status` = `pending|approved|rejected|all`
-- `search` = request id / business name / platform / business manager id / website url
+- `search` = req name / request id / business name / platform / type / api / business manager id / website url
 - `per_page` = items per page (default `10`)
 
 ```bash
@@ -466,7 +474,7 @@ curl --request GET 'http://localhost:8000/api/client/ad-account-requests?status=
 Optional query params:
 - `status` (`pending|approved|rejected|all`)
 - `client_id` (specific client user id, or `all`)
-- `search` (request id or client name)
+- `search` (req name / request id / account details / type / api / client name)
 - `per_page` (items per page, default `10`)
 
 ```bash
@@ -856,4 +864,3 @@ echo $! > storage/artisan-serve.pid
 Cmd to instll for mail 
 composer require symfony/sendgrid-mailer
 composer require symfony/http-client
-

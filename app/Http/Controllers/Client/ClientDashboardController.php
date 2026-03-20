@@ -165,7 +165,7 @@ class ClientDashboardController extends Controller
     {
         return (int) AdAccountRequest::where('client_id', $clientId)
             ->whereRaw('LOWER(status) = ?', [AdAccountRequest::STATUS_APPROVED])
-            ->sum('number_of_accounts');
+            ->count();
     }
 
     /*
