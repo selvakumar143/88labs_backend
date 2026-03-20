@@ -8,6 +8,7 @@ use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class WalletTopupController extends Controller
 {
@@ -37,8 +38,11 @@ class WalletTopupController extends Controller
                     ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($clientQuery) use ($search) {
                         $clientQuery->where('clientName', 'like', "%{$search}%")
-                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
+
+                        if (Schema::hasColumn('clients', 'client_name')) {
+                            $clientQuery->orWhere('client_name', 'like', "%{$search}%");
+                        }
                     });
             });
         }

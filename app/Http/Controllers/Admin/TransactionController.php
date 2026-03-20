@@ -211,8 +211,11 @@ class TransactionController extends Controller
                     ->orWhere('currency', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('clientName', 'like', "%{$search}%")
-                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
+
+                        if (Schema::hasColumn('clients', 'client_name')) {
+                            $sub->orWhere('client_name', 'like', "%{$search}%");
+                        }
                     });
             });
         }
@@ -286,7 +289,11 @@ class TransactionController extends Controller
                     ->orWhere('currency', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('clientName', 'like', "%{$search}%")
-                            ->orWhere('client_name', 'like', "%{$search}%");
+                            ;
+
+                        if (Schema::hasColumn('clients', 'client_name')) {
+                            $sub->orWhere('client_name', 'like', "%{$search}%");
+                        }
                     })
                     ->orWhereHas('adAccountRequest', function ($sub) use ($search) {
                         $sub->where('request_id', 'like', "%{$search}%")

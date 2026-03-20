@@ -8,6 +8,7 @@ use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema;
 
 class ExchangeRequestController extends Controller
 {
@@ -31,8 +32,11 @@ class ExchangeRequestController extends Controller
             $clientName = trim((string) $request->client_name);
             $query->where(function ($q) use ($clientName) {
                 $q->whereHas('client', function ($sub) use ($clientName) {
-                    $sub->where('clientName', 'like', "%{$clientName}%")
-                        ->orWhere('client_name', 'like', "%{$clientName}%");
+                    $sub->where('clientName', 'like', "%{$clientName}%");
+
+                    if (Schema::hasColumn('clients', 'client_name')) {
+                        $sub->orWhere('client_name', 'like', "%{$clientName}%");
+                    }
                 });
             });
         }
@@ -58,8 +62,11 @@ class ExchangeRequestController extends Controller
                     ->orWhere('convertion_rate', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('clientName', 'like', "%{$search}%")
-                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
+
+                        if (Schema::hasColumn('clients', 'client_name')) {
+                            $sub->orWhere('client_name', 'like', "%{$search}%");
+                        }
                     });
             });
         }

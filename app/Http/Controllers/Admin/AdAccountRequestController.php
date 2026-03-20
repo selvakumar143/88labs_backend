@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdAccountRequestController extends Controller
 {
@@ -40,8 +41,11 @@ class AdAccountRequestController extends Controller
                   ->orWhere('vcc_provider', 'like', "%{$request->search}%")
                   ->orWhereHas('client', function ($sub) use ($request) {
                       $sub->where('clientName', 'like', "%{$request->search}%")
-                          ->orWhere('client_name', 'like', "%{$request->search}%")
                           ->orWhere('email', 'like', "%{$request->search}%");
+
+                      if (Schema::hasColumn('clients', 'client_name')) {
+                          $sub->orWhere('client_name', 'like', "%{$request->search}%");
+                      }
                   })
                   ->orWhereHas('businessManager', function ($sub) use ($request) {
                       $sub->where('name', 'like', "%{$request->search}%");

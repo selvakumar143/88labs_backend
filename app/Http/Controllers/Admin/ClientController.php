@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
 
 class ClientController extends Controller
 {
@@ -96,7 +97,9 @@ class ClientController extends Controller
                 $client->save();
             }
 
-            // Send invite "set password" email with a password broker token
+            DB::commit();
+
+            // Send invite "set password" email after the response to avoid request timeouts.
             $token = Password::broker()->createToken($user);
             $url = route('password.setup', [
                 'token' => $token,
@@ -111,27 +114,33 @@ class ClientController extends Controller
                 'If the button does not work, copy and paste this link into your browser: '.$url,
                 'This link will expire in '.$expireMinutes.' minutes.',
             ]);
-            $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, null, [
-                'heading' => 'Set Your Account Password',
-                'greeting' => 'Welcome, '.$user->name.'!',
-                'lines' => [
-                    'Your account has been created. Set your password to activate your account.',
-                ],
-                'action_text' => 'Set Password',
-                'action_url' => $url,
-                'footer_lines' => [
-                    'This link will expire in '.$expireMinutes.' minutes.',
-                ],
-            ]);
-            if (isset($mailResult['error'])) {
-                throw new \Exception('Mail send failed: '.$mailResult['error']);
-            }
 
-            DB::commit();
+            dispatch(function () use ($user, $subject, $contentText, $url, $expireMinutes) {
+                $mailResult = ServiceController::sendMail($user->email, $subject, $contentText, null, [
+                    'heading' => 'Set Your Account Password',
+                    'greeting' => 'Welcome, '.$user->name.'!',
+                    'lines' => [
+                        'Your account has been created. Set your password to activate your account.',
+                    ],
+                    'action_text' => 'Set Password',
+                    'action_url' => $url,
+                    'footer_lines' => [
+                        'This link will expire in '.$expireMinutes.' minutes.',
+                    ],
+                ]);
+
+                if (isset($mailResult['error'])) {
+                    Log::warning('Client invite email failed', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'error' => $mailResult['error'],
+                    ]);
+                }
+            })->afterResponse();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Client created. Password setup email sent.',
+                'message' => 'Client created. Password setup email queued.',
                 'data' => $client->load('user')
             ], 201);
 

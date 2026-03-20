@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -15,6 +16,89 @@ use App\Models\GetSpendData;
 
 class ClientDashboardController extends Controller
 {
+    public function showLogin()
+    {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Client login route is available.',
+        ]);
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string|min:6',
+        ]);
+
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invalid credentials',
+            ], 401);
+        }
+
+        $user = Auth::user();
+
+        if (!$user || !$user->hasAnyRole(['customer', 'Customer', 'client_admin', 'client_manager', 'client_viewer'])) {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized. Not a client user.',
+            ], 403);
+        }
+
+        if ($user->status !== 'active') {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your account is inactive.',
+            ], 403);
+        }
+
+        $tenantClient = $user->tenantClient()->with('primaryAdmin:id,status')->first()
+            ?? $user->client()->with('primaryAdmin:id,status')->first();
+
+        if ($tenantClient && !$tenantClient->enabled) {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your client account is disabled.',
+            ], 403);
+        }
+
+        if ($tenantClient && $tenantClient->primaryAdmin && $tenantClient->primaryAdmin->status !== 'active') {
+            Auth::logout();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Your client admin account is inactive.',
+            ], 403);
+        }
+
+        $request->session()->regenerate();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Login successful',
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Logged out successfully',
+        ]);
+    }
+
     private function getWalletBalances(int $clientId, ?string $startDate = null, ?string $endDate = null): array
     {
         $walletTopupQuery = WalletTopup::where('client_id', $clientId)

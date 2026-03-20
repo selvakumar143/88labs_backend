@@ -7,6 +7,7 @@ use App\Models\TopRequest;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema;
 
 class TopRequestController extends Controller
 {
@@ -37,8 +38,11 @@ class TopRequestController extends Controller
                     ->orWhere('currency', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('clientName', 'like', "%{$search}%")
-                            ->orWhere('client_name', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
+
+                        if (Schema::hasColumn('clients', 'client_name')) {
+                            $sub->orWhere('client_name', 'like', "%{$search}%");
+                        }
                     })
                     ->orWhereHas('adAccountRequest', function ($sub) use ($search) {
                         $sub->where('request_id', 'like', "%{$search}%")
