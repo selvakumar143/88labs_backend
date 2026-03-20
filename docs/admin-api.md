@@ -51,6 +51,12 @@ This document covers admin-facing endpoints from `routes/api.php`.
 | GET | `/admin/ad-account-requests` | List ad account requests |
 | PUT | `/admin/ad-account-requests/{id}` | Update request status |
 
+Ad account request fields:
+- Records now include `req_name`, `type`, `api`, and `master_id`
+- `type` is `master` or `child`
+- Child rows store the parent row id in `master_id`
+- Admin updates may include `req_name` and `api` (`enable|disable`)
+
 ### Wallet Topups
 
 | Method | Endpoint | Description |

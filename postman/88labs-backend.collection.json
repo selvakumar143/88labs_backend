@@ -372,7 +372,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"business_name\": \"Postman Ads LLP\",\n  \"platform\": \"meta\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"country\": \"India\",\n  \"currency\": \"INR\",\n  \"website_url\": \"https://example.com\",\n  \"account_type\": \"business\",\n  \"personal_profile\": \"https://facebook.com/test.profile\",\n  \"number_of_accounts\": 2,\n  \"account_preference\": \"Agency managed\",\n  \"notes\": \"Created from Postman collection\"\n}"
+              "raw": "{\n  \"req_name\": \"Postman Campaign Batch\",\n  \"business_name\": \"Postman Ads LLP\",\n  \"platform\": \"meta\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"country\": \"India\",\n  \"currency\": \"INR\",\n  \"website_url\": \"https://example.com\",\n  \"account_type\": \"business\",\n  \"personal_profile\": \"https://facebook.com/test.profile\",\n  \"api\": \"enable\",\n  \"number_of_accounts\": 2,\n  \"account_preference\": \"Agency managed\",\n  \"notes\": \"Created from Postman collection\"\n}"
             },
             "url": "{{base_url}}/client/ad-account-request"
           }

@@ -7,6 +7,7 @@ use App\Models\AdAccountRequest;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AdAccountRequestController extends Controller
 {
@@ -21,9 +22,11 @@ class AdAccountRequestController extends Controller
             'personal_profile' => $request->input('personal_profile', $request->input('personal_facebook_profile_link')),
             'number_of_accounts' => $request->input('number_of_accounts', $request->input('number_of_ad_accounts')),
             'notes' => $request->input('notes', $request->input('note')),
+            'api' => $request->input('api', AdAccountRequest::API_ENABLE),
         ]);
 
         $request->validate([
+            'req_name' => 'required|string|max:255',
             'business_name' => 'required|string|max:255',
             'platform' => 'required|string',
             'timezone' => 'required|string',
@@ -34,8 +37,11 @@ class AdAccountRequestController extends Controller
             'website_url' => 'required|string',
             'account_type' => 'required|string',
             'personal_profile' => 'required|string',
-            'number_of_accounts' => 'required|integer|min:1',
+            'number_of_accounts' => 'required|integer|min:0',
             'account_preference' => 'nullable|string|max:255',
+            'api' => 'sometimes|string|in:enable,disable',
+            'type' => 'prohibited',
+            'master_id' => 'prohibited',
             'account_name' => 'prohibited',
             'account_id' => 'prohibited',
             'card_type' => 'prohibited',
@@ -43,13 +49,11 @@ class AdAccountRequestController extends Controller
         ]);
         $user = Auth::user();
 
-        $lastId = AdAccountRequest::max('id') + 1;
-        $requestId = 'REQ-' . str_pad($lastId, 4, '0', STR_PAD_LEFT);
-
-        $data = AdAccountRequest::create([
-            'request_id' => $requestId,
+        $baseData = [
             'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
+            'req_name' => $request->req_name,
+            'api' => $request->api ?: AdAccountRequest::API_ENABLE,
             'business_name' => $request->business_name, // 🔥 REQUIRED
             'platform' => $request->platform,
             'timezone' => $request->timezone,
@@ -64,7 +68,25 @@ class AdAccountRequestController extends Controller
             'additional_notes' => $request->notes,
             'number_of_accounts' => $request->number_of_accounts,
             'status' => AdAccountRequest::STATUS_PENDING,
-        ]);
+        ];
+
+        $data = DB::transaction(function () use ($baseData, $request) {
+            $master = AdAccountRequest::create(array_merge($baseData, [
+                'request_id' => $this->generateRequestId(),
+                'type' => AdAccountRequest::TYPE_MASTER,
+                'master_id' => null,
+            ]));
+
+            for ($childIndex = 0; $childIndex < (int) $request->number_of_accounts; $childIndex++) {
+                AdAccountRequest::create(array_merge($baseData, [
+                    'request_id' => $this->generateRequestId(),
+                    'type' => AdAccountRequest::TYPE_CHILD,
+                    'master_id' => $master->id,
+                ]));
+            }
+
+            return $master;
+        });
 
         NotificationDispatcher::notifyAdmins(
             eventType: 'ad_account_request_created',
@@ -116,9 +138,12 @@ class AdAccountRequestController extends Controller
         if (request()->filled('search')) {
             $search = request()->search;
             $query->where(function ($q) use ($search) {
-                $q->where('request_id', 'like', "%{$search}%")
+                $q->where('req_name', 'like', "%{$search}%")
+                    ->orWhere('request_id', 'like', "%{$search}%")
                     ->orWhere('business_name', 'like', "%{$search}%")
                     ->orWhere('platform', 'like', "%{$search}%")
+                    ->orWhere('type', 'like', "%{$search}%")
+                    ->orWhere('api', 'like', "%{$search}%")
                     ->orWhere('business_manager_id', 'like', "%{$search}%")
                     ->orWhere('website_url', 'like', "%{$search}%");
             });
@@ -151,5 +176,12 @@ class AdAccountRequestController extends Controller
         return data_get($request, 'client.clientName')
             ?? data_get($request, 'client.client_name')
             ?? data_get($request, 'client.name');
+    }
+
+    private function generateRequestId(): string
+    {
+        $nextId = ((int) AdAccountRequest::max('id')) + 1;
+
+        return 'REQ-' . str_pad((string) $nextId, 4, '0', STR_PAD_LEFT);
     }
 }
