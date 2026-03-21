@@ -35,7 +35,7 @@ class AdAccountRequest extends Model
         'vcc_provider',
         'business_manager_id',
         'account_name',
-        'account_preference',
+        'bm_id',
         'account_id',
         'card_type',
         'card_number',

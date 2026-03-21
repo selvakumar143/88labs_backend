@@ -79,6 +79,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Ad Account
         Route::post('/client/ad-account-request', [ClientAdController::class, 'store']);
         Route::get('/client/ad-account-requests', [ClientAdController::class, 'index']);
+        Route::put('/client/ad-account-requests/{id}', [ClientAdController::class, 'update']);
         Route::get('/my-ad-account-requests', [ClientAdController::class, 'myRequests']);
 
         // Wallet

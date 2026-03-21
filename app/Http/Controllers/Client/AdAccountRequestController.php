@@ -37,8 +37,8 @@ class AdAccountRequestController extends Controller
             'website_url' => 'required|string',
             'account_type' => 'required|string',
             'personal_profile' => 'required|string',
-            'number_of_accounts' => 'required|integer|min:0',
-            'account_preference' => 'nullable|string|max:255',
+            'number_of_accounts' => 'required|integer|min:1|max:50',
+            'bm_id' => 'nullable|string|max:255',
             'api' => 'sometimes|string|in:enable,disable',
             'type' => 'prohibited',
             'master_id' => 'prohibited',
@@ -51,8 +51,7 @@ class AdAccountRequestController extends Controller
 
         $baseData = [
             'client_id' => $clientId,
-            'sub_user_id' => Auth::id(),
-            'req_name' => $request->req_name,
+            'sub_user_id' => Auth::id(),           
             'api' => $request->api ?: AdAccountRequest::API_ENABLE,
             'business_name' => $request->business_name, // 🔥 REQUIRED
             'platform' => $request->platform,
@@ -61,7 +60,7 @@ class AdAccountRequestController extends Controller
             'currency' => $request->currency,
             'vcc_provider' => $request->vcc_provider,
             'business_manager_id' => $request->business_manager_id,
-            'account_preference' => $request->account_preference,
+            'bm_id' => $request->bm_id,
             'website_url' => $request->website_url,
             'account_type' => $request->account_type,
             'personal_profile' => $request->personal_profile,
@@ -71,21 +70,26 @@ class AdAccountRequestController extends Controller
         ];
 
         $data = DB::transaction(function () use ($baseData, $request) {
-            $master = AdAccountRequest::create(array_merge($baseData, [
-                'request_id' => $this->generateRequestId(),
-                'type' => AdAccountRequest::TYPE_MASTER,
-                'master_id' => null,
-            ]));
+            $count = (int) $request->number_of_accounts;
+            $requestIds = $this->generateRequestIds($count);
+            $now = now();
+            $baseName = trim((string) $request->req_name);
+            $rows = [];
 
-            for ($childIndex = 0; $childIndex < (int) $request->number_of_accounts; $childIndex++) {
-                AdAccountRequest::create(array_merge($baseData, [
-                    'request_id' => $this->generateRequestId(),
-                    'type' => AdAccountRequest::TYPE_CHILD,
-                    'master_id' => $master->id,
-                ]));
+            for ($index = 0; $index < $count; $index++) {
+                $rows[] = array_merge($baseData, [
+                    'request_id' => $requestIds[$index],
+                    'req_name' => $count === 1 ? $baseName : ($baseName . ' ' . ($index + 1)),
+                    'type' => AdAccountRequest::TYPE_MASTER,
+                    'master_id' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
             }
 
-            return $master;
+            AdAccountRequest::insert($rows);
+
+            return AdAccountRequest::where('request_id', $requestIds[0])->first();
         });
 
         NotificationDispatcher::notifyAdmins(
@@ -171,6 +175,140 @@ class AdAccountRequestController extends Controller
         return $this->index();
     }
 
+    public function update(Request $request, $id)
+    {
+        $clientId = (int) $request->attributes->get('current_client_id');
+
+        $request->merge([
+            'business_name' => $request->input('business_name', $request->input('company_name')),
+            'platform' => $request->input('platform', $request->input('ad_platform')),
+            'website_url' => $request->input('website_url', $request->input('company_website_url')),
+            'personal_profile' => $request->input('personal_profile', $request->input('personal_facebook_profile_link')),
+            'number_of_accounts' => $request->input('number_of_accounts', $request->input('number_of_ad_accounts')),
+            'notes' => $request->input('notes', $request->input('note')),
+            'api' => $request->input('api', $request->input('api_status')),
+        ]);
+
+        $validated = $request->validate([
+            'req_name' => ['sometimes', 'string', 'max:255'],
+            'business_name' => ['sometimes', 'string', 'max:255'],
+            'platform' => ['sometimes', 'string'],
+            'timezone' => ['sometimes', 'string'],
+            'country' => ['sometimes', 'string'],
+            'currency' => ['sometimes', 'string'],
+            'vcc_provider' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'business_manager_id' => ['sometimes', 'nullable', 'exists:business_managers,id'],
+            'website_url' => ['sometimes', 'string'],
+            'account_type' => ['sometimes', 'string'],
+            'personal_profile' => ['sometimes', 'string'],
+            'number_of_accounts' => ['sometimes', 'integer', 'min:1'],
+            'bm_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // 'api' => ['sometimes', 'string', 'in:enable,disable'],
+            'type' => ['prohibited'],
+            'master_id' => ['prohibited'],
+            'account_name' => ['prohibited'],
+            'account_id' => ['prohibited'],
+            'card_type' => ['prohibited'],
+            'card_number' => ['prohibited'],
+        ]);
+
+        $requestData = AdAccountRequest::where('client_id', $clientId)->findOrFail($id);
+
+        if ($requestData->status !== AdAccountRequest::STATUS_PENDING) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only pending ad account requests can be updated.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($validated, $requestData) {
+            $updateData = [];
+
+            if (array_key_exists('req_name', $validated)) {
+                $updateData['req_name'] = $validated['req_name'];
+            }
+
+            if (array_key_exists('business_name', $validated)) {
+                $updateData['business_name'] = $validated['business_name'];
+            }
+
+            if (array_key_exists('platform', $validated)) {
+                $updateData['platform'] = $validated['platform'];
+            }
+
+            if (array_key_exists('timezone', $validated)) {
+                $updateData['timezone'] = $validated['timezone'];
+            }
+
+            if (array_key_exists('country', $validated)) {
+                $updateData['market_country'] = $validated['country'];
+            }
+
+            if (array_key_exists('currency', $validated)) {
+                $updateData['currency'] = $validated['currency'];
+            }
+
+            if (array_key_exists('vcc_provider', $validated)) {
+                $updateData['vcc_provider'] = $validated['vcc_provider'];
+            }
+
+            if (array_key_exists('business_manager_id', $validated)) {
+                $updateData['business_manager_id'] = $validated['business_manager_id'];
+            }
+
+            if (array_key_exists('website_url', $validated)) {
+                $updateData['website_url'] = $validated['website_url'];
+            }
+
+            if (array_key_exists('account_type', $validated)) {
+                $updateData['account_type'] = $validated['account_type'];
+            }
+
+            if (array_key_exists('personal_profile', $validated)) {
+                $updateData['personal_profile'] = $validated['personal_profile'];
+            }
+
+            if (array_key_exists('number_of_accounts', $validated)) {
+                $updateData['number_of_accounts'] = $validated['number_of_accounts'];
+            }
+
+            if (array_key_exists('bm_id', $validated)) {
+                $updateData['bm_id'] = $validated['bm_id'];
+            }
+
+            if (array_key_exists('notes', $validated)) {
+                $updateData['additional_notes'] = $validated['notes'];
+            }
+
+            if (array_key_exists('api', $validated)) {
+                $updateData['api'] = $validated['api'] ?? AdAccountRequest::API_ENABLE;
+            }
+
+            if (!empty($updateData)) {
+                $requestData->update($updateData);
+            }
+        });
+
+        $updatedRequest = $requestData->fresh([
+            'client.primaryAdmin:id,name',
+            'creatorUser:id,name',
+            'businessManager',
+        ]);
+        $updatedRequest->client_name = $this->resolveClientName($updatedRequest);
+        $updatedRequest->sub_user_id = $updatedRequest->sub_user_id;
+        $updatedRequest->created_by = optional($updatedRequest->creatorUser)->name
+            ?? optional(optional($updatedRequest->client)->primaryAdmin)->name
+            ?? $updatedRequest->client_name;
+        $updatedRequest->business_manager_name = optional($updatedRequest->businessManager)->name;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Ad account request updated.',
+            'data' => $updatedRequest,
+        ]);
+    }
+
     private function resolveClientName(AdAccountRequest $request): ?string
     {
         return data_get($request, 'client.clientName')
@@ -178,10 +316,16 @@ class AdAccountRequestController extends Controller
             ?? data_get($request, 'client.name');
     }
 
-    private function generateRequestId(): string
+    private function generateRequestIds(int $count): array
     {
-        $nextId = ((int) AdAccountRequest::max('id')) + 1;
+        $count = max(1, $count);
+        $startId = ((int) AdAccountRequest::max('id')) + 1;
+        $ids = [];
 
-        return 'REQ-' . str_pad((string) $nextId, 4, '0', STR_PAD_LEFT);
+        for ($offset = 0; $offset < $count; $offset++) {
+            $ids[] = 'ACC-' . str_pad((string) ($startId + $offset), 4, '0', STR_PAD_LEFT);
+        }
+
+        return $ids;
     }
 }
