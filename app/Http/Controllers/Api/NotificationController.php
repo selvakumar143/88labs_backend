@@ -19,7 +19,7 @@ class NotificationController extends Controller
     {
         $notifications = $request->user()
             ->unreadNotifications()
-            ->latest()
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 10));
 
         return response()->json([
@@ -33,7 +33,7 @@ class NotificationController extends Controller
     {
         $notifications = $request->user()
             ->notifications()
-            ->latest()
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 10));
 
         return response()->json([

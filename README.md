@@ -169,7 +169,7 @@ php artisan tinker
 ```
 
 ```php
-App\Models\GetSpendData::latest()->take(10)->get();
+App\Models\GetSpendData::orderByDesc('id')->take(10)->get();
 ```
 
 Or query the database directly:

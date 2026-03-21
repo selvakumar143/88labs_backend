@@ -34,7 +34,7 @@ class ClientController extends Controller
             }
         }
 
-        $clients = $query->latest()->paginate($request->integer('per_page', 10));
+        $clients = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
 
         return response()->json([
             'status' => 'success',

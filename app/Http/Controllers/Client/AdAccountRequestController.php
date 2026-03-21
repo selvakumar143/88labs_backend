@@ -144,16 +144,15 @@ class AdAccountRequestController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('req_name', 'like', "%{$search}%")
                     ->orWhere('request_id', 'like', "%{$search}%")
-                    ->orWhere('business_name', 'like', "%{$search}%")
-                    ->orWhere('platform', 'like', "%{$search}%")
-                    ->orWhere('type', 'like', "%{$search}%")
-                    ->orWhere('api', 'like', "%{$search}%")
-                    ->orWhere('business_manager_id', 'like', "%{$search}%")
-                    ->orWhere('website_url', 'like', "%{$search}%");
+                    ->orWhere('bm_id', 'like', "%{$search}%")
+                    ->orWhere('market_country', 'like', "%{$search}%")
+                    ->orWhere('account_name', 'like', "%{$search}%")
+                    ->orWhere('account_id', 'like', "%{$search}%")
+                    ->orWhere('business_manager_id', 'like', "%{$search}%");
             });
         }
 
-        $requests = $query->latest()->paginate(request()->integer('per_page', 10));
+        $requests = $query->orderByDesc('id')->paginate(request()->integer('per_page', 10));
         $requests->getCollection()->transform(function ($item) {
             $item->client_name = $this->resolveClientName($item);
             $item->sub_user_id = $item->sub_user_id;

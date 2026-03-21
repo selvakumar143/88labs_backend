@@ -25,7 +25,7 @@ class BusinessManagerController extends Controller
             $query->where('status', strtolower((string) $request->status));
         }
 
-        $businessManagers = $query->latest()->paginate($request->integer('per_page', 10));
+        $businessManagers = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
 
         return response()->json([
             'status' => 'success',

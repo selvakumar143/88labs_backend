@@ -38,7 +38,7 @@ class TeamUserController extends Controller
         }
 
         $teamUsers = $query
-            ->latest()
+            ->orderByDesc('id')
             ->paginate($request->integer('per_page', 10));
 
         $formattedUsers = $teamUsers->getCollection()

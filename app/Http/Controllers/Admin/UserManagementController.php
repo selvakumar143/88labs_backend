@@ -38,7 +38,7 @@ class UserManagementController extends Controller
             });
         }
 
-        $users = $query->latest()
+        $users = $query->orderByDesc('id')
             ->paginate($request->integer('per_page', 10));
         $users->getCollection()->transform(function ($user) {
             $user->roles = $user->roles->pluck('name')->values();

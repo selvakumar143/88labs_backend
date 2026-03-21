@@ -125,7 +125,7 @@ class SpendDataController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 10);
 
         $items = $query
-            ->orderByDesc('g.date_start')
+            ->orderByDesc('g.created_at')
             ->paginate($perPage);
 
         $clients = DB::table('clients')

@@ -16,7 +16,7 @@ class AccountManagementController extends Controller
     public function index(Request $request)
     {
         $accounts = AccountManagement::with(['businessManager'])
-            ->latest()
+            ->orderByDesc('id')
             ->paginate(10);
 
         return response()->json([

@@ -213,7 +213,7 @@ class TransactionController extends Controller
             });
         }
 
-        return $query->latest()->get()->map(function (WalletTopup $item) {
+        return $query->orderByDesc('id')->get()->map(function (WalletTopup $item) {
             $requestAmount = (string) ($item->request_amount ?? $item->amount);
             $serviceFee = (string) ($item->service_fee ?? 0);
             $clientName = data_get($item, 'client.clientName')
@@ -287,7 +287,7 @@ class TransactionController extends Controller
             });
         }
 
-        return $query->latest()->get()->map(function (TopRequest $item) {
+        return $query->orderByDesc('id')->get()->map(function (TopRequest $item) {
             $adAccount = $item->adAccountRequest;
             $clientName = data_get($item, 'client.clientName')
                 ?? data_get($item, 'client.client_name')

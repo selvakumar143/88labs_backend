@@ -47,7 +47,7 @@ class WalletTopupController extends Controller
             });
         }
 
-        $data = $query->latest()->paginate($request->integer('per_page', 10));
+        $data = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
             $item->client_name = $this->resolveClientName($item);
             $item->created_by = optional($item->creatorUser)->name
