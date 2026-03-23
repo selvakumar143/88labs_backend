@@ -27,6 +27,10 @@ class TopRequestController extends Controller
             'currency' => 'required|string|max:10',
         ]);
 
+        $lastId = (int) TopRequest::max('id');
+        $nextId = $lastId + 1;
+        $requestId = 'ACCTOP-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+
         $data = TopRequest::create([
             'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
@@ -34,14 +38,16 @@ class TopRequestController extends Controller
             'amount' => $validated['amount'],
             'currency' => strtoupper($validated['currency']),
             'status' => TopRequest::STATUS_PENDING,
+            'request_id' => $requestId,
         ]);
 
         NotificationDispatcher::notifyAdmins(
             eventType: 'top_request_created',
             title: 'New Topup Request',
-            message: Auth::user()->name . " submitted topup request #{$data->id}.",
+            message: Auth::user()->name . " submitted topup request {$data->request_id}.",
             meta: [
                 'top_request_id' => $data->id,
+                'request_id' => $data->request_id,
                 'client_id' => $clientId,
                 'client_name' => Auth::user()->name,
                 'ad_account_request_id' => $data->ad_account_request_id,

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\CsvExcelResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SpendDataController extends Controller
 {
+    use CsvExcelResponse;
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -152,6 +154,114 @@ class SpendDataController extends Controller
         ]);
     }
 
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'account_id' => 'nullable|string',
+            'business_manager_id' => 'nullable|integer',
+            'business_name' => 'nullable|string',
+            'account_name' => 'nullable|string',
+            'search' => 'nullable|string',
+            'date_start' => 'nullable|date',
+            'date_end' => 'nullable|date|after_or_equal:date_start',
+            'format' => 'nullable|in:csv,excel',
+        ]);
+
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $format = $validated['format'] ?? 'csv';
+
+        $query = DB::table('get_spend_data as g')
+            ->leftJoin('clients as c', 'c.id', '=', 'g.client_id')
+            ->leftJoin('ad_account_requests as aar', function ($join) {
+                $join->on('aar.account_id', '=', 'g.account_id')
+                    ->on('aar.client_id', '=', 'g.client_id');
+            })
+            ->leftJoin('business_managers as bm', 'bm.id', '=', 'aar.business_manager_id')
+            ->where('g.client_id', $clientId)
+            ->select([
+                'g.id',
+                'g.client_id',
+                DB::raw("COALESCE(c.clientName, 'Unknown') as client_name"),
+                'g.account_id',
+                'aar.account_name',
+                'aar.business_name',
+                DB::raw("COALESCE(bm.name, '-') as business_manager_name"),
+                'g.spend',
+                'g.date_start',
+                'g.date_stop',
+                'g.created_at',
+                'g.updated_at',
+            ]);
+
+        if (!empty($validated['account_id']) && $validated['account_id'] !== 'all') {
+            $query->where('g.account_id', $validated['account_id']);
+        }
+
+        if (!empty($validated['business_manager_id'])) {
+            $query->where('aar.business_manager_id', $validated['business_manager_id']);
+        }
+
+        if (!empty($validated['business_name'])) {
+            $businessName = trim((string) $validated['business_name']);
+            $query->where('aar.business_name', 'like', "%{$businessName}%");
+        }
+
+        if (!empty($validated['account_name'])) {
+            $accountName = trim((string) $validated['account_name']);
+            $query->where('aar.account_name', 'like', "%{$accountName}%");
+        }
+
+        if (!empty($validated['search'])) {
+            $search = trim((string) $validated['search']);
+            $query->where(function ($q) use ($search) {
+                $q->orWhere('g.account_id', 'like', "%{$search}%")
+                    ->orWhere('aar.account_name', 'like', "%{$search}%")
+                    ->orWhere('aar.business_name', 'like', "%{$search}%")
+                    ->orWhere('bm.id', 'like', "%{$search}%")
+                    ->orWhere('bm.name', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($validated['date_start'])) {
+            $query->whereDate('g.date_start', '>=', $validated['date_start']);
+        }
+
+        if (!empty($validated['date_end'])) {
+            $query->whereDate('g.date_stop', '<=', $validated['date_end']);
+        }
+
+        $rows = $query->orderByDesc('g.created_at')->get();
+
+        if ($rows->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No spend data found for export.',
+            ], 404);
+        }
+
+        $headers = [
+            'id',
+            'client_id',
+            'client_name',
+            'account_id',
+            'account_name',
+            'business_name',
+            'business_manager_name',
+            'spend',
+            'date_start',
+            'date_stop',
+            'created_at',
+            'updated_at',
+        ];
+
+        return $this->exportCsvOrExcel(
+            'client_spend_data_' . now()->format('Ymd_His'),
+            $headers,
+            $rows->map(fn ($row) => (array) $row)->toArray(),
+            $format
+        );
+    }
+
     public function summary(Request $request)
     {
         $validated = $request->validate([
@@ -279,5 +389,75 @@ class SpendDataController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function summaryExport(Request $request)
+    {
+        $validated = $request->validate([
+            'account_id' => 'nullable|string',
+            'business_manager_id' => 'nullable|integer',
+            'date_start' => 'nullable|date',
+            'date_end' => 'nullable|date|after_or_equal:date_start',
+            'format' => 'nullable|in:csv,excel',
+        ]);
+
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $format = $validated['format'] ?? 'csv';
+
+        $spendByAccount = DB::table('get_spend_data as g')
+            ->select([
+                'g.account_id',
+                DB::raw('SUM(g.spend) as total_spend'),
+            ])
+            ->where('g.client_id', $clientId)
+            ->when(!empty($validated['date_start']), function ($query) use ($validated) {
+                $query->whereDate('g.date_start', '>=', $validated['date_start']);
+            })
+            ->when(!empty($validated['date_end']), function ($query) use ($validated) {
+                $query->whereDate('g.date_stop', '<=', $validated['date_end']);
+            })
+            ->groupBy('g.account_id');
+
+        $summary = DB::table('ad_account_requests as aar')
+            ->leftJoinSub($spendByAccount, 'spend', function ($join) {
+                $join->on('aar.account_id', '=', 'spend.account_id');
+            })
+            ->leftJoin('business_managers as bm', 'bm.id', '=', 'aar.business_manager_id')
+            ->where('aar.client_id', $clientId)
+            ->when(!empty($validated['account_id']) && $validated['account_id'] !== 'all', function ($query) use ($validated) {
+                $query->where('aar.account_id', $validated['account_id']);
+            })
+            ->when(!empty($validated['business_manager_id']), function ($query) use ($validated) {
+                $query->where('aar.business_manager_id', $validated['business_manager_id']);
+            })
+            ->select([
+                'aar.account_id',
+                'aar.account_name',
+                'bm.id as business_manager_id',
+                DB::raw("COALESCE(bm.name, '-') as business_manager_name"),
+                DB::raw('ROUND(COALESCE(spend.total_spend, 0), 2) as total_spend'),
+            ])
+            ->orderByDesc('total_spend')
+            ->get();
+
+        if ($summary->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No spend summary data available for export.',
+            ], 404);
+        }
+
+        return $this->exportCsvOrExcel(
+            'client_spend_summary_' . now()->format('Ymd_His'),
+            [
+                'account_id',
+                'account_name',
+                'business_manager_id',
+                'business_manager_name',
+                'total_spend',
+            ],
+            $summary->map(fn ($row) => (array) $row)->toArray(),
+            $format
+        );
     }
 }

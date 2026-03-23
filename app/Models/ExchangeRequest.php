@@ -13,6 +13,7 @@ class ExchangeRequest extends Model
     protected $fillable = [
         'client_id',
         'sub_user_id',
+        'request_id',
         'based_cur',
         'base_currency',
         'convertion_cur',

@@ -18,6 +18,7 @@ class TopRequest extends Model
         'amount',
         'currency',
         'status',
+        'request_id',
     ];
 
     public function client()

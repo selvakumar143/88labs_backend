@@ -55,6 +55,7 @@ class ExchangeRequestController extends Controller
                 $q->where('base_currency', 'like', "%{$search}%")
                     ->orWhere('converion_currency', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('request_id','like',"%{$search}%")
                     ->orWhere('request_amount', 'like', "%{$search}%")
                     ->orWhere('service_fee', 'like', "%{$search}%")
                     ->orWhere('total_deduction', 'like', "%{$search}%")

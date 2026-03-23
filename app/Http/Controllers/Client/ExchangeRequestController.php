@@ -24,6 +24,10 @@ class ExchangeRequestController extends Controller
 
         $data = $this->buildAmounts($validated);
 
+        $lastId = (int) ExchangeRequest::max('id');
+        $nextId = $lastId + 1;
+        $requestId = 'EXH-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+
         $exchangeRequest = ExchangeRequest::create([
             'client_id' => $clientId,
             'sub_user_id' => Auth::id(),
@@ -38,14 +42,16 @@ class ExchangeRequestController extends Controller
             'return_amount' => $data['return_amount'],
             'convertion_rate' => $data['convertion_rate'],
             'status' => ExchangeRequest::STATUS_PENDING,
+            'request_id' => $requestId,
         ]);
 
         NotificationDispatcher::notifyAdmins(
             eventType: 'exchange_request_created',
             title: 'New Exchange Request',
-            message: Auth::user()->name . " submitted exchange request #{$exchangeRequest->id}.",
+            message: Auth::user()->name . " submitted exchange request {$exchangeRequest->request_id}.",
             meta: [
                 'exchange_request_id' => $exchangeRequest->id,
+                'request_id' => $exchangeRequest->request_id,
                 'client_id' => $clientId,
                 'client_name' => Auth::user()->name,
                 'base_currency' => $exchangeRequest->base_currency,

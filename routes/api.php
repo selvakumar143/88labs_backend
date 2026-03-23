@@ -112,7 +112,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/client/dashboard/active-accounts-total', [ClientDashboardController::class, 'totalActiveAccounts']);
         Route::get('/client/profile/fields', [ClientProfileController::class, 'fields']);
         Route::get('/client/spend-data', [ClientSpendDataController::class, 'index']);
+        Route::get('/client/spend-data/export', [ClientSpendDataController::class, 'export']);
         Route::get('/client/spend-data/summary', [ClientSpendDataController::class, 'summary']);
+        Route::get('/client/spend-data/summary/export', [ClientSpendDataController::class, 'summaryExport']);
 
         // Notifications
         Route::get('/client/notifications/unread-count', [NotificationController::class, 'unreadCount']);
@@ -193,7 +195,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Admin Dashboard
         Route::get('/admin', [AdminController::class, 'index']);
         Route::get('/admin/spend-data', [AdminSpendDataController::class, 'index']);       
+        Route::get('/admin/spend-data/export', [AdminSpendDataController::class, 'export']);
         Route::get('/admin/spend-data/summary', [AdminSpendDataController::class, 'summary']);
+        Route::get('/admin/spend-data/summary/export', [AdminSpendDataController::class, 'summaryExport']);
 
         // Notifications
         Route::get('/admin/notifications/unread-count', [NotificationController::class, 'unreadCount']);
