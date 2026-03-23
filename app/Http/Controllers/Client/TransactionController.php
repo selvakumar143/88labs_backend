@@ -88,7 +88,7 @@ class TransactionController extends Controller
         $headers = [
             'transaction_type',
             'id',
-            'reference',
+            'request_id',
             'client_id',
             'client_name',
             'sub_user_id',
@@ -114,7 +114,7 @@ class TransactionController extends Controller
                 fputcsv($handle, [
                     $row['transaction_type'] ?? '',
                     $row['id'] ?? '',
-                    $row['reference'] ?? '',
+                    $row['request_id'] ?? '',
                     $row['client_id'] ?? '',
                     $row['client_name'] ?? '',
                     $row['sub_user_id'] ?? '',
@@ -224,7 +224,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'wallet_topup',
                 'transaction_type_key' => 'wallet_topup',
                 'id' => $item->id,
-                'reference' => $item->request_id ?? ('WALLET-' . $item->id),
+                'request_id' => $item->request_id ?? ('WALLET-' . $item->id),
                 'client_id' => $item->client_id,
                 'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
@@ -297,7 +297,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'account_topup',
                 'transaction_type_key' => 'account_topup',
                 'id' => $item->id,
-                'reference' => 'TOP-' . $item->id,
+                'request_id' => $item->request_id,
                 'client_id' => $item->client_id,
                 'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
@@ -385,7 +385,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'exchange_request',
                 'transaction_type_key' => 'exchange_request',
                 'id' => data_get($row, 'id'),
-                'reference' => data_get($row, 'request_id', 'EXCH-' . data_get($row, 'id')),
+                'request_id' => data_get($row, 'request_id', 'EXCH-' . data_get($row, 'id')),
                 'client_id' => data_get($row, 'client_id'),
                 'client_name' => $clientName,
                 'sub_user_id' => data_get($row, 'sub_user_id'),
@@ -478,7 +478,7 @@ class TransactionController extends Controller
                         <th>#</th>
                         <th>Type</th>
                         <th>ID</th>
-                        <th>Reference</th>
+                        <th>Request_id</th>
                         <th>Client</th>
                         <th>Sub User ID</th>
                         <th>Created By</th>
@@ -503,7 +503,7 @@ class TransactionController extends Controller
                     <td>' . ($index + 1) . '</td>
                     <td>' . e((string) ($row['transaction_type'] ?? '')) . '</td>
                     <td>' . e((string) ($row['id'] ?? '')) . '</td>
-                    <td>' . e((string) ($row['reference'] ?? '')) . '</td>
+                    <td>' . e((string) ($row['Request id'] ?? '')) . '</td>
                     <td>' . e((string) ($row['client_name'] ?? '-')) . '</td>
                     <td>' . e((string) ($row['sub_user_id'] ?? '-')) . '</td>
                     <td>' . e((string) ($row['created_by'] ?? '-')) . '</td>

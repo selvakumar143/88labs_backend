@@ -30,7 +30,7 @@ class TransactionInvoiceController extends Controller
         $format = $validated['format'] ?? 'csv';
         $rows = $this->invoiceExportRows($invoice);
 
-        $safeReference = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($invoice['reference'] ?? $id));
+        $safeReference = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($invoice['request_id'] ?? $id));
         $fileBase = 'invoice_' . $normalizedType . '_' . $safeReference;
 
         if ($format === 'excel') {
@@ -143,7 +143,7 @@ class TransactionInvoiceController extends Controller
         return [
             'invoice_number' => 'INV-WALLET-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
             'transaction_type' => 'Wallet Topup',
-            'reference' => $item->request_id ?? ('WALLET-' . $item->id),
+            'request_id' => $item->request_id ?? ('WALLET-' . $item->id),
             'status' => $item->status,
             'currency' => $item->currency,
             'amount' => $totalAmount,
@@ -194,7 +194,7 @@ class TransactionInvoiceController extends Controller
         return [
             'invoice_number' => 'INV-ACCOUNT-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
             'transaction_type' => 'Account Topup',
-            'reference' => 'TOP-' . $item->id,
+            'request_id' => $item->request_id,
             'status' => $item->status,
             'currency' => $item->currency,
             'amount' => $amount,
@@ -241,7 +241,7 @@ class TransactionInvoiceController extends Controller
         return [
             'invoice_number' => 'INV-EXCHANGE-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT),
             'transaction_type' => 'Exchange Request',
-            'reference' => 'EXCH-' . $item->id,
+            'request_id' => $item->request_id,
             'status' => $item->status,
             'currency' => (string) ($item->base_currency ?? $item->based_cur),
             'amount' => $totalDeduction,

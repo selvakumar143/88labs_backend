@@ -81,7 +81,7 @@ class TransactionController extends Controller
 
         $headers = [
             'transaction_type',
-            'reference',
+            'request_id',
             'client_id',
             'client_name',
             'sub_user_id',
@@ -212,7 +212,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'wallet_topup',
                 'transaction_type_key' => 'wallet_topup',
                 'id' => $item->id,
-                'reference' => $item->request_id ?? ('WALLET-' . $item->id),
+                'request_id' => $item->request_id ?? ('WALLET-' . $item->id),
                 'client_id' => $item->client_id,
                 'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
@@ -293,7 +293,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'account_topup',
                 'transaction_type_key' => 'account_topup',
                 'id' => $item->id,
-                'reference' => 'TOP-' . $item->id,
+                'request_id' => $item->request_id,
                 'client_id' => $item->client_id,
                 'client_name' => $clientName,
                 'sub_user_id' => $item->sub_user_id,
@@ -380,7 +380,7 @@ class TransactionController extends Controller
                 'transaction_type' => 'exchange_request',
                 'transaction_type_key' => 'exchange_request',
                 'id' => data_get($row, 'id'),
-                'reference' => data_get($row, 'request_id', 'EXCH-' . data_get($row, 'id')),
+                'request_id' => data_get($row, 'request_id', 'EXCH-' . data_get($row, 'id')),
                 'client_id' => data_get($row, 'client_id'),
                 'client_name' => $clientName,
                 'sub_user_id' => data_get($row, 'sub_user_id'),
@@ -482,7 +482,7 @@ class TransactionController extends Controller
     {
         return [
             'transaction_type' => (string) ($row['transaction_type'] ?? ''),
-            'reference' => (string) ($row['reference'] ?? ''),
+            'request_id' => (string) ($row['request_id'] ?? ''),
             'client_id' => (string) ($row['client_id'] ?? ''),
             'client_name' => (string) ($row['client_name'] ?? ''),
             'sub_user_id' => (string) ($row['sub_user_id'] ?? ''),

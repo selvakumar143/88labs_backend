@@ -95,6 +95,15 @@ Ad account request fields:
 | --- | --- | --- |
 | GET | `/admin` | Admin dashboard summary |
 
+### Spend Data
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/admin/spend-data` | Paginated listing of spend data; supports `client_id`, `client_name`, `business_name`, `account_name`, `account_id`, `group_by`, `search`, `date_start`, `date_end`, `per_page`, `page` |
+| GET | `/admin/spend-data/export` | Export the spend-data listing as CSV or Excel (`format=csv|excel`) with the same filters as above; `group_by` changes the exported columns to aggregate by client/account/biz manager |
+| GET | `/admin/spend-data/summary` | Summary view grouped by client (`client_id`, `account_id`, `date_start`, `date_end`, `per_page`, `page`) |
+| GET | `/admin/spend-data/summary/export` | Export the summary as CSV/Excel (`format=csv|excel`) with the same filters as `/summary` |
+
 ### Notifications
 
 | Method | Endpoint | Description |

@@ -36,6 +36,7 @@ class TopRequestController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('amount', 'like', "%{$search}%")
                     ->orWhere('currency', 'like', "%{$search}%")
+                    ->orWhere('request_id', 'like', "%{$search}%")
                     ->orWhereHas('client', function ($sub) use ($search) {
                         $sub->where('clientName', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
