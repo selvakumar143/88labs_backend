@@ -467,7 +467,22 @@ curl --request GET 'http://localhost:8000/api/client/ad-account-requests?status=
   --header 'Accept: application/json'
 ```
 
-### 3) Admin: List All Client Ad Account Requests
+### 3) Client: Export Ad Account Requests
+
+`GET /api/client/ad-account-requests/export`
+
+Optional query params:
+- `status` (`pending|approved|rejected|all`)
+- `search` (same fields as listing)
+- `format` (`csv|excel`, default `csv`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/client/ad-account-requests/export?status=approved&format=excel' \
+  --header 'Authorization: Bearer <customer_token>' \
+  --header 'Accept: application/json'
+```
+
+### 4) Admin: List All Client Ad Account Requests
 
 `GET /api/admin/ad-account-requests`
 
@@ -483,7 +498,7 @@ curl --request GET 'http://localhost:8000/api/admin/ad-account-requests?status=p
   --header 'Accept: application/json'
 ```
 
-### 4) Admin: Update Ad Account Request Status
+### 5) Admin: Update Ad Account Request Status
 
 `PUT /api/admin/ad-account-requests/1`
 
@@ -513,6 +528,22 @@ curl --request PUT 'http://localhost:8000/api/admin/ad-account-requests/1' \
   --data '{
     "status":"rejected"
   }'
+```
+
+### 6) Admin: Export Ad Account Requests
+
+`GET /api/admin/ad-account-requests/export`
+
+Optional query params:
+- `status` (`pending|approved|rejected|all`)
+- `client_id` (specific client or `all`)
+- `search` (same fields as listing)
+- `format` (`csv|excel`, default `csv`)
+
+```bash
+curl --request GET 'http://localhost:8000/api/admin/ad-account-requests/export?status=pending&client_id=5' \
+  --header 'Authorization: Bearer <admin_token>' \
+  --header 'Accept: application/json'
 ```
 
 ## Wallet Topup APIs

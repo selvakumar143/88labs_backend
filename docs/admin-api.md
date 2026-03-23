@@ -49,6 +49,7 @@ This document covers admin-facing endpoints from `routes/api.php`.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | `/admin/ad-account-requests` | List ad account requests |
+| GET | `/admin/ad-account-requests/export` | Export ad account requests as CSV/Excel (`format=csv|excel`, optional `status`, `client_id`, `search`) |
 | PUT | `/admin/ad-account-requests/{id}` | Update request status |
 
 Ad account request fields:

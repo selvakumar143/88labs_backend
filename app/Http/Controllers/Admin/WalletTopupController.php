@@ -46,6 +46,23 @@ class WalletTopupController extends Controller
                     });
             });
         }
+         if ($request->filled('start_date')) {
+            try {
+                $start = Carbon::parse($request->start_date)->startOfDay();
+                $query->where('created_at', '>=', $start);
+            } catch (\Throwable) {
+                // ignore invalid dates
+            }
+        }
+
+        if ($request->filled('end_date')) {
+            try {
+                $end = Carbon::parse($request->end_date)->endOfDay();
+                $query->where('created_at', '<=', $end);
+            } catch (\Throwable) {
+                // ignore invalid dates
+            }
+        }
 
         $data = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {

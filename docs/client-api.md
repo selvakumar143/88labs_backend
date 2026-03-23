@@ -48,6 +48,7 @@ Notes:
 | --- | --- | --- |
 | POST | `/ad-account-request` | Create ad account request |
 | GET | `/client/ad-account-requests` | List ad account requests |
+| GET | `/client/ad-account-requests/export` | Export ad account requests as CSV/Excel (`format=csv|excel`, optional `status` + `search`) |
 | GET | `/my-ad-account-requests` | List current customer requests |
 
 Ad account request body:

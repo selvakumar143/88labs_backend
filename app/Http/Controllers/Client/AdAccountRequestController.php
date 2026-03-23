@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\CsvExcelResponse;
 use App\Models\AdAccountRequest;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class AdAccountRequestController extends Controller
 {
+    use CsvExcelResponse;
+
     public function store(Request $request)
     {
         $clientId = (int) $request->attributes->get('current_client_id');
@@ -124,35 +128,10 @@ class AdAccountRequestController extends Controller
         ], 201);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $clientId = (int) request()->attributes->get('current_client_id');
-
-        $query = AdAccountRequest::with([
-                'client.primaryAdmin:id,name',
-                'creatorUser:id,name',
-                'businessManager',
-            ])
-            ->where('client_id', $clientId);
-
-        if (request()->filled('status') && request()->status !== 'all') {
-            $query->where('status', request()->status);
-        }
-
-        if (request()->filled('search')) {
-            $search = request()->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('req_name', 'like', "%{$search}%")
-                    ->orWhere('request_id', 'like', "%{$search}%")
-                    ->orWhere('bm_id', 'like', "%{$search}%")
-                    ->orWhere('market_country', 'like', "%{$search}%")
-                    ->orWhere('account_name', 'like', "%{$search}%")
-                    ->orWhere('account_id', 'like', "%{$search}%")
-                    ->orWhere('business_manager_id', 'like', "%{$search}%");
-            });
-        }
-
-        $requests = $query->orderByDesc('id')->paginate(request()->integer('per_page', 10));
+        $query = $this->adAccountRequestQuery($request);
+        $requests = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
         $requests->getCollection()->transform(function ($item) {
             $item->client_name = $this->resolveClientName($item);
             $item->sub_user_id = $item->sub_user_id;
@@ -171,7 +150,65 @@ class AdAccountRequestController extends Controller
 
     public function myRequests()
     {
-        return $this->index();
+        return $this->index(request());
+    }
+
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => 'nullable|string',
+            'search' => 'nullable|string',
+            'format' => 'nullable|in:csv,excel',
+        ]);
+
+        $requests = $this->adAccountRequestQuery($request)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($requests->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No ad account requests found for export.',
+            ], 404);
+        }
+
+        $headers = [
+            'request_id',
+            'req_name',
+            'client_id',
+            'client_name',
+            'status',
+            'type',
+            'api',
+            'business_name',
+            'platform',
+            'currency',
+            'market_country',
+            'timezone',
+            'website_url',
+            'account_type',
+            'number_of_accounts',
+            'business_manager_id',
+            'business_manager_name',
+            'account_name',
+            'account_id',
+            'sub_user_id',
+            'created_by',
+            'additional_notes',
+            'created_at',
+            'updated_at',
+            'approved_by',
+            'approved_at',
+        ];
+
+        $rows = $requests->map(fn ($item) => $this->mapClientExportRow($item))->toArray();
+
+        return $this->exportCsvOrExcel(
+            'client-ad-account-requests-' . now()->format('Ymd_His'),
+            $headers,
+            $rows,
+            $validated['format'] ?? 'csv'
+        );
     }
 
     public function update(Request $request, $id)
@@ -306,6 +343,92 @@ class AdAccountRequestController extends Controller
             'message' => 'Ad account request updated.',
             'data' => $updatedRequest,
         ]);
+    }
+
+    private function adAccountRequestQuery(Request $request)
+    {
+        $clientId = (int) $request->attributes->get('current_client_id');
+        dd($request->start_date)
+
+        $query = AdAccountRequest::with([
+            'client.primaryAdmin:id,name',
+            'creatorUser:id,name',
+            'businessManager',
+        ])->where('client_id', $clientId);
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('req_name', 'like', "%{$search}%")
+                    ->orWhere('request_id', 'like', "%{$search}%")
+                    ->orWhere('bm_id', 'like', "%{$search}%")
+                    ->orWhere('market_country', 'like', "%{$search}%")
+                    ->orWhere('account_name', 'like', "%{$search}%")
+                    ->orWhere('account_id', 'like', "%{$search}%")
+                    ->orWhere('business_manager_id', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('start_date')) {
+            try {
+                $start = Carbon::parse($request->start_date)->startOfDay();
+                $query->where('created_at', '>=', $start);
+            } catch (\Throwable) {
+                // ignore invalid dates
+            }
+        }
+
+        if ($request->filled('end_date')) {
+            try {
+                $end = Carbon::parse($request->end_date)->endOfDay();
+                $query->where('created_at', '<=', $end);
+            } catch (\Throwable) {
+                // ignore invalid dates
+            }
+        }
+
+        return $query;
+    }
+
+    private function mapClientExportRow(AdAccountRequest $item): array
+    {
+        $clientName = $this->resolveClientName($item);
+        $createdBy = optional($item->creatorUser)->name
+            ?? optional(optional($item->client)->primaryAdmin)->name
+            ?? $clientName;
+
+        return [
+            'request_id' => $item->request_id,
+            'req_name' => $item->req_name,
+            'client_id' => $item->client_id,
+            'client_name' => $clientName,
+            'status' => $item->status,
+            'type' => $item->type,
+            'api' => $item->api,
+            'business_name' => $item->business_name,
+            'platform' => $item->platform,
+            'currency' => $item->currency,
+            'market_country' => $item->market_country,
+            'timezone' => $item->timezone,
+            'website_url' => $item->website_url,
+            'account_type' => $item->account_type,
+            'number_of_accounts' => $item->number_of_accounts,
+            'business_manager_id' => $item->business_manager_id,
+            'business_manager_name' => optional($item->businessManager)->name,
+            'account_name' => $item->account_name,
+            'account_id' => $item->account_id,
+            'sub_user_id' => $item->sub_user_id,
+            'created_by' => $createdBy,
+            'additional_notes' => $item->additional_notes,
+            'created_at' => $item->created_at,
+            'updated_at' => $item->updated_at,
+            'approved_by' => $item->approved_by,
+            'approved_at' => $item->approved_at,
+        ];
     }
 
     private function resolveClientName(AdAccountRequest $request): ?string
