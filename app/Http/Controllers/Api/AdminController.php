@@ -19,12 +19,20 @@ class AdminController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
+        $validated = $request->validate([
+            'date_start' => 'nullable|date',
+            'date_end' => 'nullable|date|after_or_equal:date_start',
+        ]);
+
+        $startDate = $validated['date_start'] ?? Carbon::today()->subMonths(10)->toDateString();
+        $endDate = $validated['date_end'] ?? Carbon::today()->toDateString();
+
         $totalOnboarded = Client::where('enabled', true)->count();
         $pendingApprovals = WalletTopup::where('status', 'pending')->count();
         $needReview = AdAccountRequest::where('status', 'pending')->count();
-        $totalSpends = (float) GetSpendData::sum('spend');
+        $totalSpends = $this->calculateTotalSpends($startDate, $endDate);
         $live = Carbon::now()->toDateTimeString();
 
         // Operational Queue
@@ -32,14 +40,14 @@ class AdminController extends Controller
         $adAccountRequestsPending = AdAccountRequest::where('status', 'pending')->count();
         $disabledClients = User::role('customer')->where('status', 'inactive')->count();
 
-        // Today Highlights
+        // Today Highlights (still based on today)
         $newClientsAdded = Client::whereDate('created_at', Carbon::today())->count();
         $approvedTopups = (float) WalletTopup::where('status', WalletTopup::STATUS_APPROVED)
             ->whereDate('approved_at', Carbon::today())
             ->sum('amount');
         $averageServiceFeeValue = (float) Client::whereNotNull('serviceFeePercent')->avg('serviceFeePercent');
         $averageServiceFee = number_format($averageServiceFeeValue, 2) . '%';
-        $totalSpendTrend = $this->GetSpendsTrend();
+        $totalSpendTrend = $this->GetSpendsTrend($startDate, $endDate);
 
         return response()->json([
             'total_onboarded' => $totalOnboarded,
@@ -58,12 +66,8 @@ class AdminController extends Controller
     }
 
 
-     public function GetSpendsTrend()
+    public function GetSpendsTrend(string $startDate, string $endDate)
     {
-
-        $startDate = Carbon::today()->subMonths(10)->toDateString();
-        $endDate = Carbon::today()->toDateString();
-
         $query = GetSpendData::query();
 
         if (!empty($startDate)) {
@@ -78,5 +82,19 @@ class AdminController extends Controller
             ->orderByDesc('date_start')->get();
             
         return $items;
+    }
+
+    private function calculateTotalSpends(string $startDate, string $endDate): float
+    {
+        $query = GetSpendData::query();
+        if (!empty($startDate)) {
+            $query->whereDate('date_start', '>=', $startDate);
+        }
+
+        if (!empty($endDate)) {
+            $query->whereDate('date_stop', '<=', $endDate);
+        }
+
+        return (float) $query->sum('spend');
     }
 }

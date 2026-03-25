@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\CsvExcelResponse;
 use App\Models\TopRequest;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TopRequestController extends Controller
 {
+    use CsvExcelResponse;
+
     public function store(Request $request)
     {
         $clientId = (int) $request->attributes->get('current_client_id');
@@ -76,22 +80,7 @@ class TopRequestController extends Controller
 
     public function index(Request $request)
     {
-        $clientId = (int) $request->attributes->get('current_client_id');
-
-        $query = TopRequest::with([
-            'client.primaryAdmin:id,name',
-            'creatorUser:id,name',
-            'adAccountRequest:id,request_id,business_name,platform,status',
-        ])
-            ->where('client_id', $clientId);
-
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('ad_account_request_id') && $request->ad_account_request_id !== 'all') {
-            $query->where('ad_account_request_id', $request->ad_account_request_id);
-        }
+        $query = $this->topRequestQuery($request);
 
         $data = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
@@ -113,10 +102,140 @@ class TopRequestController extends Controller
         return $this->index($request);
     }
 
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => 'nullable|string',
+            'ad_account_request_id' => 'nullable|string',
+            'search' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'format' => 'nullable|in:csv,excel',
+        ]);
+
+        $requests = $this->topRequestQuery($request)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($requests->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No top requests found for export.',
+            ], 404);
+        }
+
+        $headers = [
+            'request_id',
+            'client_id',
+            'client_name',
+            'sub_user_id',
+            'created_by',
+            'ad_account_request_id',
+            'ad_account_request_number',
+            'ad_account_business_name',
+            'ad_account_platform',
+            'ad_account_status',
+            'amount',
+            'currency',
+            'status',
+            'created_at',
+            'updated_at',
+        ];
+
+        $rows = $requests->map(fn ($item) => $this->mapTopRequestExportRow($item))->toArray();
+
+        return $this->exportCsvOrExcel(
+            'client-top-requests',
+            $headers,
+            $rows,
+            $validated['format'] ?? 'csv',
+            TopRequest::class
+        );
+    }
+
     private function resolveClientName(TopRequest $request): ?string
     {
         return data_get($request, 'client.clientName')
             ?? data_get($request, 'client.client_name')
             ?? data_get($request, 'client.name');
+    }
+
+    private function topRequestQuery(Request $request)
+    {
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $query = TopRequest::with([
+            'client.primaryAdmin:id,name',
+            'creatorUser:id,name',
+            'adAccountRequest:id,request_id,business_name,platform,status',
+        ])->where('client_id', $clientId);
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('ad_account_request_id') && $request->ad_account_request_id !== 'all') {
+            $query->where('ad_account_request_id', $request->ad_account_request_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('request_id', 'like', "%{$search}%")
+                    ->orWhere('currency', 'like', "%{$search}%")
+                    ->orWhere('amount', 'like', "%{$search}%")
+                    ->orWhereHas('adAccountRequest', function ($sub) use ($search) {
+                        $sub->where('request_id', 'like', "%{$search}%")
+                            ->orWhere('business_name', 'like', "%{$search}%")
+                            ->orWhere('platform', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('start_date')) {
+            try {
+                $start = Carbon::parse($request->start_date)->startOfDay();
+                $query->where('created_at', '>=', $start);
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        if ($request->filled('end_date')) {
+            try {
+                $end = Carbon::parse($request->end_date)->endOfDay();
+                $query->where('created_at', '<=', $end);
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        return $query;
+    }
+
+    private function mapTopRequestExportRow(TopRequest $request): array
+    {
+        $clientName = $this->resolveClientName($request);
+        $createdBy = optional($request->creatorUser)->name
+            ?? optional(optional($request->client)->primaryAdmin)->name
+            ?? $clientName;
+        $adAccount = $request->adAccountRequest;
+
+        return [
+            'request_id' => $request->request_id,
+            'client_id' => $request->client_id,
+            'client_name' => $clientName,
+            'sub_user_id' => $request->sub_user_id,
+            'created_by' => $createdBy,
+            'ad_account_request_id' => $request->ad_account_request_id,
+            'ad_account_request_number' => optional($adAccount)->request_id,
+            'ad_account_business_name' => optional($adAccount)->business_name,
+            'ad_account_platform' => optional($adAccount)->platform,
+            'ad_account_status' => optional($adAccount)->status,
+            'amount' => $request->amount,
+            'currency' => $request->currency,
+            'status' => $request->status,
+            'created_at' => $request->created_at,
+            'updated_at' => $request->updated_at,
+        ];
     }
 }

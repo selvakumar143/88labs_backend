@@ -204,10 +204,11 @@ class AdAccountRequestController extends Controller
         $rows = $requests->map(fn ($item) => $this->mapClientExportRow($item))->toArray();
 
         return $this->exportCsvOrExcel(
-            'client-ad-account-requests-' . now()->format('Ymd_His'),
+            'client-ad-account-requests',
             $headers,
             $rows,
-            $validated['format'] ?? 'csv'
+            $validated['format'] ?? 'csv',
+            AdAccountRequest::class
         );
     }
 
@@ -348,8 +349,6 @@ class AdAccountRequestController extends Controller
     private function adAccountRequestQuery(Request $request)
     {
         $clientId = (int) $request->attributes->get('current_client_id');
-        dd($request->start_date)
-
         $query = AdAccountRequest::with([
             'client.primaryAdmin:id,name',
             'creatorUser:id,name',

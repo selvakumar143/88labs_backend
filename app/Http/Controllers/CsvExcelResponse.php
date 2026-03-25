@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\XlsxExport;
+use Illuminate\Support\Str;
 
 trait CsvExcelResponse
 {
@@ -13,10 +14,25 @@ trait CsvExcelResponse
      * @param string[] $headers
      * @param array<int, array<string, mixed>> $rows
      * @param string $format
+     * @param string|null $modelClass
      */
-    private function exportCsvOrExcel(string $fileBase, array $headers, array $rows, string $format = 'csv')
+    private function exportCsvOrExcel(string $fileBase, array $headers, array $rows, string $format = 'csv', ?string $modelClass = null)
     {
         $format = $format === 'excel' ? 'excel' : 'csv';
+
+        $prefix = $modelClass
+            ? Str::kebab(class_basename($modelClass))
+            : trim($fileBase, '-_');
+
+        if ($prefix === '') {
+            $prefix = 'export';
+        }
+
+        $timestamp = now()->format('Ymd_His');
+        $safeBase = preg_replace('/[^A-Za-z0-9._-]+/', '-', "{$prefix}-{$timestamp}");
+        $safeBase = trim($safeBase, '-_');
+
+        $fileName = $safeBase . ($format === 'excel' ? '.xlsx' : '.csv');
 
         if ($format === 'excel') {
             $xlsxRows = array_merge(
@@ -28,7 +44,7 @@ trait CsvExcelResponse
 
             return response($xlsx, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileBase . '.xlsx"',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
             ]);
         }
 
@@ -45,8 +61,9 @@ trait CsvExcelResponse
             }
 
             fclose($handle);
-        }, $fileBase . '.csv', [
+        }, $fileName, [
             'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
         ]);
     }
 

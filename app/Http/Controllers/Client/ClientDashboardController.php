@@ -309,7 +309,7 @@ class ClientDashboardController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
-                    'txn_id'     => $item->request_id,
+                    'request_id' => $item->request_id,
                     'ad_account' => $item->business_name ?? '-',
                     'amount'     => (float) $item->amount,
                     'status'     => strtoupper($item->status),

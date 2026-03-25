@@ -86,10 +86,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Wallet
         Route::post('/wallet-topup', [ClientWallet::class, 'store']);
         Route::get('/my-wallet-topups', [ClientWallet::class, 'myRequests']);
+        Route::get('/client/wallet-topups/export', [ClientWallet::class, 'export']);
         Route::get('/client/wallet-summary', [ClientDashboardController::class, 'walletSummary']);
 
         // Top Requests
         Route::post('/top-requests', [ClientTopRequest::class, 'store']);
+        Route::get('/client/top-requests/export', [ClientTopRequest::class, 'export']);
         Route::get('/my-top-requests', [ClientTopRequest::class, 'myRequests']);
 
         // Transactions
@@ -101,6 +103,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Exchange Requests
         Route::post('/client/exchange-requests', [ClientExchangeRequestController::class, 'store']);
         Route::get('/client/exchange-requests', [ClientExchangeRequestController::class, 'index']);
+        Route::get('/client/exchange-requests/export', [ClientExchangeRequestController::class, 'export']);
         Route::get('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'show']);
         Route::put('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'update']);
         Route::delete('/client/exchange-requests/{id}', [ClientExchangeRequestController::class, 'destroy']);

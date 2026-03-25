@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\CsvExcelResponse;
 use App\Models\ExchangeRequest;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class ExchangeRequestController extends Controller
 {
+    use CsvExcelResponse;
+
     public function store(Request $request)
     {
         $clientId = (int) $request->attributes->get('current_client_id');
@@ -82,40 +86,7 @@ class ExchangeRequestController extends Controller
 
     public function index(Request $request)
     {
-        $clientId = (int) $request->attributes->get('current_client_id');
-
-        $query = ExchangeRequest::with([
-            'client.primaryAdmin:id,name,email',
-            'creatorUser:id,name',
-            'approver:id,name,email',
-        ])
-            ->where('client_id', $clientId);
-
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('base_currency') && $request->base_currency !== 'all') {
-            $query->where('base_currency', strtoupper((string) $request->base_currency));
-        }
-
-        if ($request->filled('converion_currency') && $request->converion_currency !== 'all') {
-            $query->where('converion_currency', strtoupper((string) $request->converion_currency));
-        }
-
-        if ($request->filled('search')) {
-            $search = trim((string) $request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('base_currency', 'like', "%{$search}%")
-                    ->orWhere('converion_currency', 'like', "%{$search}%")
-                    ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhere('request_amount', 'like', "%{$search}%")
-                    ->orWhere('service_fee', 'like', "%{$search}%")
-                    ->orWhere('total_deduction', 'like', "%{$search}%")
-                    ->orWhere('return_amount', 'like', "%{$search}%")
-                    ->orWhere('convertion_rate', 'like', "%{$search}%");
-            });
-        }
+        $query = $this->exchangeRequestQuery($request);
 
         $data = $query->orderByDesc('id')->paginate($request->integer('per_page', 10));
         $data->getCollection()->transform(function ($item) {
@@ -135,6 +106,63 @@ class ExchangeRequestController extends Controller
     public function myRequests(Request $request)
     {
         return $this->index($request);
+    }
+
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => 'nullable|string',
+            'base_currency' => 'nullable|string',
+            'converion_currency' => 'nullable|string',
+            'search' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'format' => 'nullable|in:csv,excel',
+        ]);
+
+        $requests = $this->exchangeRequestQuery($request)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($requests->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No exchange requests found for export.',
+            ], 404);
+        }
+
+        $headers = [
+            'request_id',
+            'client_id',
+            'client_name',
+            'sub_user_id',
+            'created_by',
+            'based_cur',
+            'base_currency',
+            'convertion_cur',
+            'convertion_currency',
+            'request_amount',
+            'service_fee',
+            'total_deduction',
+            'return_amount',
+            'final_amount',
+            'convertion_rate',
+            'status',
+            'approved_by',
+            'approved_at',
+            'created_at',
+            'updated_at',
+        ];
+
+        $rows = $requests->map(fn ($item) => $this->mapExchangeExportRow($item))->toArray();
+
+        return $this->exportCsvOrExcel(
+            'client-exchange-requests',
+            $headers,
+            $rows,
+            $validated['format'] ?? 'csv',
+            ExchangeRequest::class
+        );
     }
 
     public function show($id)
@@ -270,5 +298,92 @@ class ExchangeRequestController extends Controller
         return data_get($exchangeRequest, 'client.clientName')
             ?? data_get($exchangeRequest, 'client.client_name')
             ?? data_get($exchangeRequest, 'client.name');
+    }
+
+    private function exchangeRequestQuery(Request $request)
+    {
+        $clientId = (int) $request->attributes->get('current_client_id');
+        $query = ExchangeRequest::with([
+            'client.primaryAdmin:id,name,email',
+            'creatorUser:id,name',
+            'approver:id,name,email',
+        ])->where('client_id', $clientId);
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('base_currency') && $request->base_currency !== 'all') {
+            $query->where('base_currency', strtoupper((string) $request->base_currency));
+        }
+
+        if ($request->filled('converion_currency') && $request->converion_currency !== 'all') {
+            $query->where('converion_currency', strtoupper((string) $request->converion_currency));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('base_currency', 'like', "%{$search}%")
+                    ->orWhere('converion_currency', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('request_amount', 'like', "%{$search}%")
+                    ->orWhere('service_fee', 'like', "%{$search}%")
+                    ->orWhere('total_deduction', 'like', "%{$search}%")
+                    ->orWhere('return_amount', 'like', "%{$search}%")
+                    ->orWhere('convertion_rate', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('start_date')) {
+            try {
+                $start = Carbon::parse($request->start_date)->startOfDay();
+                $query->where('created_at', '>=', $start);
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        if ($request->filled('end_date')) {
+            try {
+                $end = Carbon::parse($request->end_date)->endOfDay();
+                $query->where('created_at', '<=', $end);
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        return $query;
+    }
+
+    private function mapExchangeExportRow(ExchangeRequest $exchangeRequest): array
+    {
+        $clientName = $this->resolveClientName($exchangeRequest);
+        $createdBy = optional($exchangeRequest->creatorUser)->name
+            ?? optional(optional($exchangeRequest->client)->primaryAdmin)->name
+            ?? $clientName;
+
+        return [
+            'request_id' => $exchangeRequest->request_id,
+            'client_id' => $exchangeRequest->client_id,
+            'client_name' => $clientName,
+            'sub_user_id' => $exchangeRequest->sub_user_id,
+            'created_by' => $createdBy,
+            'based_cur' => $exchangeRequest->based_cur,
+            'base_currency' => $exchangeRequest->base_currency,
+            'convertion_cur' => $exchangeRequest->convertion_cur,
+            'convertion_currency' => $exchangeRequest->convertion_currency,
+            'request_amount' => $exchangeRequest->request_amount,
+            'service_fee' => $exchangeRequest->service_fee,
+            'total_deduction' => $exchangeRequest->total_deduction,
+            'return_amount' => $exchangeRequest->return_amount,
+            'final_amount' => $exchangeRequest->final_amount,
+            'convertion_rate' => $exchangeRequest->convertion_rate,
+            'status' => $exchangeRequest->status,
+            'approved_by' => optional($exchangeRequest->approver)->name ?? $exchangeRequest->approved_by,
+            'approved_at' => $exchangeRequest->approved_at,
+            'created_at' => $exchangeRequest->created_at,
+            'updated_at' => $exchangeRequest->updated_at,
+        ];
     }
 }

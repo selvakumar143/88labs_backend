@@ -102,7 +102,7 @@ class TransactionController extends Controller
         $rows = $transactions->map(fn ($row) => $this->mapTransactionExportRow($row))->toArray();
 
         return $this->exportCsvOrExcel(
-            'transactions_' . now()->format('Ymd_His'),
+            'transactions',
             $headers,
             $rows,
             $format

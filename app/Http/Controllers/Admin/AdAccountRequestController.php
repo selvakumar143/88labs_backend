@@ -91,10 +91,11 @@ class AdAccountRequestController extends Controller
         $rows = $requests->map(fn ($item) => $this->mapAdminExportRow($item))->toArray();
 
         return $this->exportCsvOrExcel(
-            'admin-ad-account-requests-' . now()->format('Ymd_His'),
+            'admin-ad-account-requests',
             $headers,
             $rows,
-            $validated['format'] ?? 'csv'
+            $validated['format'] ?? 'csv',
+            AdAccountRequest::class
         );
     }
 

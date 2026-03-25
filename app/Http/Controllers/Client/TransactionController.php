@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\CsvExcelResponse;
 use App\Models\TopRequest;
 use App\Models\User;
 use App\Models\WalletTopup;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Schema;
 
 class TransactionController extends Controller
 {
+    use CsvExcelResponse;
+
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -75,19 +78,8 @@ class TransactionController extends Controller
             ], 404);
         }
 
-        $fileBase = 'transactions_' . now()->format('Ymd_His');
-
-        if ($format === 'excel') {
-            $html = $this->buildExportHtml($transactions);
-            return response($html, 200, [
-                'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="' . $fileBase . '.xls"',
-            ]);
-        }
-
         $headers = [
             'transaction_type',
-            'id',
             'request_id',
             'client_id',
             'client_name',
@@ -106,37 +98,14 @@ class TransactionController extends Controller
             'approved_at',
         ];
 
-        return response()->streamDownload(function () use ($transactions, $headers) {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, $headers);
+        $rows = $transactions->map(fn ($row) => $this->mapTransactionExportRow($row))->toArray();
 
-            foreach ($transactions as $row) {
-                fputcsv($handle, [
-                    $row['transaction_type'] ?? '',
-                    $row['id'] ?? '',
-                    $row['request_id'] ?? '',
-                    $row['client_id'] ?? '',
-                    $row['client_name'] ?? '',
-                    $row['sub_user_id'] ?? '',
-                    $row['created_by'] ?? '',
-                    $row['business_name'] ?? '',
-                    $row['account_id'] ?? '',
-                    $row['account_name'] ?? '',
-                    $row['business_manager_name'] ?? '',
-                    $row['amount'] ?? '',
-                    $row['currency'] ?? '',
-                    $row['status'] ?? '',
-                    $row['payment_mode'] ?? '',
-                    $row['transaction_hash'] ?? '',
-                    $row['created_at'] ?? '',
-                    $row['approved_at'] ?? '',
-                ]);
-            }
-
-            fclose($handle);
-        }, $fileBase . '.csv', [
-            'Content-Type' => 'text/csv',
-        ]);
+        return $this->exportCsvOrExcel(
+            'client-transactions',
+            $headers,
+            $rows,
+            $format
+        );
     }
 
     protected function buildTransactions(array $filters): Collection
@@ -468,62 +437,27 @@ class TransactionController extends Controller
         };
     }
 
-    protected function buildExportHtml(Collection $rows): string
+    private function mapTransactionExportRow(array $row): array
     {
-        $html = '
-            <h2 style="text-align:center;">Transactions Report</h2>
-            <table width="100%" border="1" cellspacing="0" cellpadding="6">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Type</th>
-                        <th>ID</th>
-                        <th>Request_id</th>
-                        <th>Client</th>
-                        <th>Sub User ID</th>
-                        <th>Created By</th>
-                        <th>Business</th>
-                        <th>Account ID</th>
-                        <th>Account Name</th>
-                        <th>Business Manager</th>
-                        <th>Amount</th>
-                        <th>Currency</th>
-                        <th>Status</th>
-                        <th>Hash</th>
-                        <th>Created Date</th>
-                        <th>Approved Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-        ';
-
-        foreach ($rows as $index => $row) {
-            $html .= '
-                <tr>
-                    <td>' . ($index + 1) . '</td>
-                    <td>' . e((string) ($row['transaction_type'] ?? '')) . '</td>
-                    <td>' . e((string) ($row['id'] ?? '')) . '</td>
-                    <td>' . e((string) ($row['Request id'] ?? '')) . '</td>
-                    <td>' . e((string) ($row['client_name'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['sub_user_id'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['created_by'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['business_name'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['account_id'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['account_name'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['business_manager_name'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['amount'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['currency'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['status'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['transaction_hash'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['created_at'] ?? '-')) . '</td>
-                    <td>' . e((string) ($row['approved_at'] ?? '-')) . '</td>
-                </tr>
-            ';
-        }
-
-        $html .= '</tbody></table>';
-
-        return $html;
+        return [
+            'transaction_type' => (string) ($row['transaction_type'] ?? ''),
+            'request_id' => (string) ($row['request_id'] ?? ''),
+            'client_id' => (string) ($row['client_id'] ?? ''),
+            'client_name' => (string) ($row['client_name'] ?? ''),
+            'sub_user_id' => (string) ($row['sub_user_id'] ?? ''),
+            'created_by' => (string) ($row['created_by'] ?? ''),
+            'business_name' => (string) ($row['business_name'] ?? ''),
+            'account_id' => (string) ($row['account_id'] ?? ''),
+            'account_name' => (string) ($row['account_name'] ?? ''),
+            'business_manager_name' => (string) ($row['business_manager_name'] ?? ''),
+            'amount' => (string) ($row['amount'] ?? ''),
+            'currency' => (string) ($row['currency'] ?? ''),
+            'status' => (string) ($row['status'] ?? ''),
+            'payment_mode' => (string) ($row['payment_mode'] ?? ''),
+            'transaction_hash' => (string) ($row['transaction_hash'] ?? ''),
+            'created_at' => (string) ($row['created_at'] ?? ''),
+            'approved_at' => (string) ($row['approved_at'] ?? ''),
+        ];
     }
 
     private function resolveClientOwnerUserIdFromRaw(int $clientId): int

@@ -255,7 +255,7 @@ class SpendDataController extends Controller
         ];
 
         return $this->exportCsvOrExcel(
-            'client_spend_data_' . now()->format('Ymd_His'),
+            'client-spend-data',
             $headers,
             $rows->map(fn ($row) => (array) $row)->toArray(),
             $format
@@ -448,7 +448,7 @@ class SpendDataController extends Controller
         }
 
         return $this->exportCsvOrExcel(
-            'client_spend_summary_' . now()->format('Ymd_His'),
+            'client-spend-summary',
             [
                 'account_id',
                 'account_name',

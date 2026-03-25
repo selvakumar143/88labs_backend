@@ -410,7 +410,7 @@ class SpendDataController extends Controller
         $headers = $this->getSpendDataExportHeaders($groupBy);
 
         return $this->exportCsvOrExcel(
-            'admin_spend_data_' . now()->format('Ymd_His'),
+            'admin-spend-data',
             $headers,
             $rows->map(fn ($row) => (array) $row)->toArray(),
             $format
@@ -551,7 +551,7 @@ class SpendDataController extends Controller
         }
 
         return $this->exportCsvOrExcel(
-            'admin_spend_summary_' . now()->format('Ymd_His'),
+            'admin-spend-summary',
             [
                 'client_id',
                 'client_name',
